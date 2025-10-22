@@ -1,3 +1,5 @@
 [tools]
 rust = "latest"
 typos = "latest"
+osv-scanner = "latest"
+"cargo:cargo-deny" = "latest"
