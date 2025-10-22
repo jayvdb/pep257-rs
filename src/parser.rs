@@ -3,7 +3,7 @@ use std::fs;
 use std::path::Path;
 use tree_sitter::{Language, Parser, Query, QueryCursor, Tree};
 
-/// Errors that can occur during parsing
+/// Errors that can occur during parsing.
 #[derive(thiserror::Error, Debug)]
 pub enum ParseError {
     #[error("Failed to read file: {0}")]
@@ -14,14 +14,15 @@ pub enum ParseError {
     Query(String),
 }
 
-/// Rust parser using tree-sitter
+/// Rust parser using tree-sitter.
 pub struct RustParser {
     parser: Parser,
     language: Language,
 }
 
+/// Implementation of parser methods.
 impl RustParser {
-    /// Create a new Rust parser
+    /// Create a new Rust parser instance.
     pub fn new() -> Result<Self, ParseError> {
         let language = tree_sitter_rust::language();
         let mut parser = Parser::new();
@@ -33,13 +34,13 @@ impl RustParser {
         Ok(Self { parser, language })
     }
 
-    /// Parse a Rust file and extract all docstrings
+    /// Parse a Rust file and extract all docstrings.
     pub fn parse_file<P: AsRef<Path>>(&mut self, path: P) -> Result<Vec<Docstring>, ParseError> {
         let source_code = fs::read_to_string(path)?;
         self.parse_source(&source_code)
     }
 
-    /// Parse Rust source code and extract all docstrings
+    /// Parse Rust source code and extract all docstrings.
     pub fn parse_source(&mut self, source_code: &str) -> Result<Vec<Docstring>, ParseError> {
         let tree = self
             .parser
@@ -60,7 +61,7 @@ impl RustParser {
         Ok(docstrings)
     }
 
-    /// Extract documentation from function declarations
+    /// Extract documentation from function declarations.
     fn extract_function_docs(
         &self,
         tree: &Tree,
@@ -100,7 +101,7 @@ impl RustParser {
         Ok(docstrings)
     }
 
-    /// Extract documentation from struct declarations
+    /// Extract documentation from struct declarations.
     fn extract_struct_docs(&self, tree: &Tree, source: &str) -> Result<Vec<Docstring>, ParseError> {
         let query = Query::new(
             self.language,
@@ -136,7 +137,7 @@ impl RustParser {
         Ok(docstrings)
     }
 
-    /// Extract documentation from enum declarations
+    /// Extract documentation from enum declarations.
     fn extract_enum_docs(&self, tree: &Tree, source: &str) -> Result<Vec<Docstring>, ParseError> {
         let query = Query::new(
             self.language,
@@ -172,7 +173,7 @@ impl RustParser {
         Ok(docstrings)
     }
 
-    /// Extract documentation from trait declarations
+    /// Extract documentation from trait declarations.
     fn extract_trait_docs(&self, tree: &Tree, source: &str) -> Result<Vec<Docstring>, ParseError> {
         let query = Query::new(
             self.language,
@@ -208,7 +209,7 @@ impl RustParser {
         Ok(docstrings)
     }
 
-    /// Extract documentation from impl blocks
+    /// Extract documentation from impl blocks.
     fn extract_impl_docs(&self, tree: &Tree, source: &str) -> Result<Vec<Docstring>, ParseError> {
         let query = Query::new(
             self.language,
@@ -236,7 +237,7 @@ impl RustParser {
         Ok(docstrings)
     }
 
-    /// Extract documentation from module declarations
+    /// Extract documentation from module declarations.
     fn extract_mod_docs(&self, tree: &Tree, source: &str) -> Result<Vec<Docstring>, ParseError> {
         let query = Query::new(
             self.language,
@@ -272,7 +273,7 @@ impl RustParser {
         Ok(docstrings)
     }
 
-    /// Extract documentation from const declarations
+    /// Extract documentation from const declarations.
     fn extract_const_docs(&self, tree: &Tree, source: &str) -> Result<Vec<Docstring>, ParseError> {
         let query = Query::new(
             self.language,
@@ -308,7 +309,7 @@ impl RustParser {
         Ok(docstrings)
     }
 
-    /// Generic function to extract documentation using a tree-sitter query
+    /// Generic function to extract documentation using a tree-sitter query.
     #[allow(dead_code)]
     fn extract_docs_with_query(
         &self,
@@ -339,7 +340,7 @@ impl RustParser {
         Ok(docstrings)
     }
 
-    /// Extract documentation comments preceding a given node
+    /// Extract documentation comments preceding a given node.
     fn extract_preceding_docs(
         &self,
         node: tree_sitter::Node,
@@ -452,7 +453,7 @@ impl RustParser {
         }))
     }
 
-    /// Extract documentation from a #[doc = "..."] attribute
+    /// Extract documentation from a #[doc = "..."] attribute.
     fn extract_doc_attribute(
         &self,
         attr_node: &tree_sitter::Node,
@@ -492,7 +493,7 @@ impl RustParser {
         Ok(None)
     }
 
-    /// Process documentation comments to extract clean content
+    /// Process documentation comments to extract clean content.
     fn process_doc_comments(&self, comments: &[&str]) -> String {
         let mut processed_lines = Vec::new();
 
@@ -533,10 +534,12 @@ impl RustParser {
     }
 }
 
+/// Unit tests for the parser.
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    /// Test parsing a simple function with documentation.
     #[test]
     fn test_parse_simple_function() {
         let mut parser = RustParser::new().unwrap();
@@ -553,6 +556,7 @@ fn add(a: i32, b: i32) -> i32 {
         assert!(!docstrings[0].is_multiline);
     }
 
+    /// Test parsing a multiline function documentation.
     #[test]
     fn test_parse_multiline_function() {
         let mut parser = RustParser::new().unwrap();
@@ -573,6 +577,7 @@ fn add(a: i32, b: i32) -> i32 {
         assert!(docstrings[0].content.contains("arithmetic operation"));
     }
 
+    /// Test parsing a struct with documentation.
     #[test]
     fn test_parse_struct() {
         let mut parser = RustParser::new().unwrap();

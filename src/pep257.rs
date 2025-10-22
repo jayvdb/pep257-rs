@@ -1,7 +1,7 @@
 use regex::Regex;
 use std::fmt;
 
-/// Represents a PEP 257 violation
+/// Represents a PEP 257 violation.
 #[derive(Debug, Clone)]
 pub struct Violation {
     pub rule: String,
@@ -11,13 +11,16 @@ pub struct Violation {
     pub severity: Severity,
 }
 
+/// Severity level for violations.
 #[derive(Debug, Clone)]
 pub enum Severity {
     Error,
     Warning,
 }
 
+/// Format a violation for display.
 impl fmt::Display for Violation {
+    /// Format the violation as a string.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -34,7 +37,7 @@ impl fmt::Display for Violation {
     }
 }
 
-/// Represents a docstring found in the code
+/// Represents a docstring found in the code.
 #[derive(Debug, Clone)]
 pub struct Docstring {
     pub content: String,
@@ -46,6 +49,7 @@ pub struct Docstring {
     pub target_type: DocstringTarget,
 }
 
+/// Type of construct that has a docstring.
 #[derive(Debug, Clone, PartialEq)]
 pub enum DocstringTarget {
     Function,
@@ -59,7 +63,9 @@ pub enum DocstringTarget {
     Static,
 }
 
+/// Format a docstring target for display.
 impl fmt::Display for DocstringTarget {
+    /// Format the docstring target as a string.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let name = match self {
             DocstringTarget::Function => "function",
@@ -75,7 +81,7 @@ impl fmt::Display for DocstringTarget {
     }
 }
 
-/// PEP 257 checker implementation
+/// PEP 257 checker implementation.
 pub struct Pep257Checker {
     #[allow(dead_code)]
     whitespace_regex: Regex,
@@ -83,13 +89,17 @@ pub struct Pep257Checker {
     leading_space_regex: Regex,
 }
 
+/// Provide a default checker instance.
 impl Default for Pep257Checker {
+    /// Return a new checker with default configuration.
     fn default() -> Self {
         Self::new()
     }
 }
 
+/// Implementation of checker methods.
 impl Pep257Checker {
+    /// Create a new checker instance.
     pub fn new() -> Self {
         Self {
             whitespace_regex: Regex::new(r"\s+").unwrap(),
@@ -97,7 +107,7 @@ impl Pep257Checker {
         }
     }
 
-    /// Check a docstring against PEP 257 rules
+    /// Check a docstring against PEP 257 rules.
     pub fn check_docstring(&self, docstring: &Docstring) -> Vec<Violation> {
         let mut violations = Vec::new();
 
@@ -121,7 +131,7 @@ impl Pep257Checker {
         violations
     }
 
-    /// D200 series: One-line docstring whitespace issues
+    /// Check D200 series: One-line docstring whitespace issues.
     fn check_d200_series(&self, docstring: &Docstring) -> Vec<Violation> {
         let mut violations = Vec::new();
         let content = &docstring.content;
@@ -170,7 +180,7 @@ impl Pep257Checker {
         violations
     }
 
-    /// D300 series: Triple double quotes and closing quotes position
+    /// Check D300 series: Triple double quotes and closing quotes position.
     fn check_d300_series(&self, docstring: &Docstring) -> Vec<Violation> {
         let mut violations = Vec::new();
         let lines: Vec<&str> = docstring.content.lines().collect();
@@ -216,7 +226,7 @@ impl Pep257Checker {
         violations
     }
 
-    /// D400 series: First line should be a summary
+    /// Check D400 series: First line should be a summary.
     fn check_d400_series(&self, docstring: &Docstring) -> Vec<Violation> {
         let mut violations = Vec::new();
         let lines: Vec<&str> = docstring.content.lines().collect();
@@ -281,7 +291,7 @@ impl Pep257Checker {
         violations
     }
 
-    /// Check if a line is not in imperative mood (simple heuristic)
+    /// Determine if a line is not in imperative mood using a simple heuristic.
     fn is_not_imperative(&self, line: &str) -> bool {
         let words: Vec<&str> = line.split_whitespace().collect();
         if words.is_empty() {
@@ -300,10 +310,12 @@ impl Pep257Checker {
     }
 }
 
+/// Unit tests for the PEP 257 checker.
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    /// Test empty docstring detection.
     #[test]
     fn test_empty_docstring() {
         let checker = Pep257Checker::new();
@@ -321,6 +333,7 @@ mod tests {
         assert_eq!(violations[0].rule, "D100");
     }
 
+    /// Test a properly formatted docstring.
     #[test]
     fn test_good_docstring() {
         let checker = Pep257Checker::new();
@@ -337,6 +350,7 @@ mod tests {
         assert!(violations.is_empty());
     }
 
+    /// Test missing period detection.
     #[test]
     fn test_missing_period() {
         let checker = Pep257Checker::new();

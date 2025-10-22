@@ -1,5 +1,8 @@
+/// Analyzer module for Rust documentation.
 mod analyzer;
+/// Parser module for extracting docstrings.
 mod parser;
+/// PEP 257 checker implementation.
 mod pep257;
 
 use analyzer::RustDocAnalyzer;
@@ -8,6 +11,7 @@ use pep257::Severity;
 use std::path::PathBuf;
 use std::process;
 
+/// Command-line interface configuration.
 #[derive(ClapParser)]
 #[command(name = "pep257")]
 #[command(about = "A tool to check Rust docstrings against PEP 257 conventions")]
@@ -33,6 +37,7 @@ struct Cli {
     no_fail: bool,
 }
 
+/// Available subcommands for the CLI.
 #[derive(Subcommand)]
 enum Commands {
     /// Check a single file
@@ -50,12 +55,14 @@ enum Commands {
     },
 }
 
+/// Output format options.
 #[derive(clap::ValueEnum, Clone)]
 enum OutputFormat {
     Text,
     Json,
 }
 
+/// Entry point for the application.
 fn main() {
     let cli = Cli::parse();
 
@@ -65,6 +72,7 @@ fn main() {
     }
 }
 
+/// Run the main logic of the application.
 fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
     let mut analyzer = RustDocAnalyzer::new()?;
     let mut total_violations = 0;
@@ -93,6 +101,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+/// Check a single file for violations.
 fn check_file(
     analyzer: &mut RustDocAnalyzer,
     file: &PathBuf,
@@ -134,6 +143,7 @@ fn check_file(
     Ok(filtered_violations.len())
 }
 
+/// Check all files in a directory.
 fn check_directory(
     analyzer: &mut RustDocAnalyzer,
     dir: &PathBuf,
@@ -155,6 +165,7 @@ fn check_directory(
     Ok(total_violations)
 }
 
+/// Collect all Rust files in a directory without recursion.
 fn collect_rust_files(dir: &PathBuf) -> Result<Vec<PathBuf>, Box<dyn std::error::Error>> {
     let mut files = Vec::new();
 
@@ -170,9 +181,11 @@ fn collect_rust_files(dir: &PathBuf) -> Result<Vec<PathBuf>, Box<dyn std::error:
     Ok(files)
 }
 
+/// Collect Rust files in a directory recursively.
 fn collect_rust_files_recursive(dir: &PathBuf) -> Result<Vec<PathBuf>, Box<dyn std::error::Error>> {
     let mut files = Vec::new();
 
+    /// Visit a directory and collect Rust files recursively.
     fn visit_dir(
         dir: &PathBuf,
         files: &mut Vec<PathBuf>,

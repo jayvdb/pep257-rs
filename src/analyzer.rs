@@ -2,14 +2,15 @@ use crate::parser::{ParseError, RustParser};
 use crate::pep257::{Pep257Checker, Violation};
 use std::path::Path;
 
-/// Main analyzer that combines parsing and checking
+/// Main analyzer that combines parsing and checking.
 pub struct RustDocAnalyzer {
     parser: RustParser,
     checker: Pep257Checker,
 }
 
+/// Implementation of analyzer methods.
 impl RustDocAnalyzer {
-    /// Create a new analyzer
+    /// Create a new analyzer instance.
     pub fn new() -> Result<Self, ParseError> {
         Ok(Self {
             parser: RustParser::new()?,
@@ -17,7 +18,7 @@ impl RustDocAnalyzer {
         })
     }
 
-    /// Analyze a Rust file and return all PEP 257 violations
+    /// Analyze a Rust file and return all PEP 257 violations.
     pub fn analyze_file<P: AsRef<Path>>(&mut self, path: P) -> Result<Vec<Violation>, ParseError> {
         let docstrings = self.parser.parse_file(&path)?;
         let mut violations = Vec::new();
@@ -29,7 +30,7 @@ impl RustDocAnalyzer {
         Ok(violations)
     }
 
-    /// Analyze Rust source code and return all PEP 257 violations
+    /// Analyze Rust source code and return all PEP 257 violations.
     #[allow(dead_code)]
     pub fn analyze_source(&mut self, source: &str) -> Result<Vec<Violation>, ParseError> {
         let docstrings = self.parser.parse_source(source)?;
@@ -43,10 +44,12 @@ impl RustDocAnalyzer {
     }
 }
 
+/// Unit tests for the analyzer.
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    /// Test analyzer with properly formatted code.
     #[test]
     fn test_analyze_good_code() {
         let mut analyzer = RustDocAnalyzer::new().unwrap();
@@ -67,6 +70,7 @@ struct Point {
         assert!(violations.is_empty());
     }
 
+    /// Test analyzer with poorly formatted code.
     #[test]
     fn test_analyze_bad_code() {
         let mut analyzer = RustDocAnalyzer::new().unwrap();
