@@ -7,11 +7,11 @@ use tree_sitter::{Language, Parser, Query, QueryCursor, Tree};
 #[derive(thiserror::Error, Debug)]
 pub enum ParseError {
     #[error("Failed to read file: {0}")]
-    IoError(#[from] std::io::Error),
+    Io(#[from] std::io::Error),
     #[error("Failed to parse file: tree-sitter error")]
-    TreeSitterError,
+    TreeSitter,
     #[error("Query error: {0}")]
-    QueryError(String),
+    Query(String),
 }
 
 /// Rust parser using tree-sitter
@@ -28,7 +28,7 @@ impl RustParser {
 
         parser
             .set_language(language)
-            .map_err(|_| ParseError::TreeSitterError)?;
+            .map_err(|_| ParseError::TreeSitter)?;
 
         Ok(Self { parser, language })
     }
@@ -44,7 +44,7 @@ impl RustParser {
         let tree = self
             .parser
             .parse(source_code, None)
-            .ok_or(ParseError::TreeSitterError)?;
+            .ok_or(ParseError::TreeSitter)?;
 
         let mut docstrings = Vec::new();
 
@@ -74,7 +74,7 @@ impl RustParser {
             ) @function
             "#,
         )
-        .map_err(|e| ParseError::QueryError(e.to_string()))?;
+        .map_err(|e| ParseError::Query(e.to_string()))?;
 
         let mut cursor = QueryCursor::new();
         let matches = cursor.matches(&query, tree.root_node(), source.as_bytes());
@@ -110,7 +110,7 @@ impl RustParser {
             ) @struct
             "#,
         )
-        .map_err(|e| ParseError::QueryError(e.to_string()))?;
+        .map_err(|e| ParseError::Query(e.to_string()))?;
 
         let mut cursor = QueryCursor::new();
         let matches = cursor.matches(&query, tree.root_node(), source.as_bytes());
@@ -146,7 +146,7 @@ impl RustParser {
             ) @enum
             "#,
         )
-        .map_err(|e| ParseError::QueryError(e.to_string()))?;
+        .map_err(|e| ParseError::Query(e.to_string()))?;
 
         let mut cursor = QueryCursor::new();
         let matches = cursor.matches(&query, tree.root_node(), source.as_bytes());
@@ -182,7 +182,7 @@ impl RustParser {
             ) @trait
             "#,
         )
-        .map_err(|e| ParseError::QueryError(e.to_string()))?;
+        .map_err(|e| ParseError::Query(e.to_string()))?;
 
         let mut cursor = QueryCursor::new();
         let matches = cursor.matches(&query, tree.root_node(), source.as_bytes());
@@ -216,7 +216,7 @@ impl RustParser {
             (impl_item) @impl
             "#,
         )
-        .map_err(|e| ParseError::QueryError(e.to_string()))?;
+        .map_err(|e| ParseError::Query(e.to_string()))?;
 
         let mut cursor = QueryCursor::new();
         let matches = cursor.matches(&query, tree.root_node(), source.as_bytes());
@@ -246,7 +246,7 @@ impl RustParser {
             ) @module
             "#,
         )
-        .map_err(|e| ParseError::QueryError(e.to_string()))?;
+        .map_err(|e| ParseError::Query(e.to_string()))?;
 
         let mut cursor = QueryCursor::new();
         let matches = cursor.matches(&query, tree.root_node(), source.as_bytes());
@@ -282,7 +282,7 @@ impl RustParser {
             ) @const
             "#,
         )
-        .map_err(|e| ParseError::QueryError(e.to_string()))?;
+        .map_err(|e| ParseError::Query(e.to_string()))?;
 
         let mut cursor = QueryCursor::new();
         let matches = cursor.matches(&query, tree.root_node(), source.as_bytes());
@@ -309,6 +309,7 @@ impl RustParser {
     }
 
     /// Generic function to extract documentation using a tree-sitter query
+    #[allow(dead_code)]
     fn extract_docs_with_query(
         &self,
         tree: &Tree,
@@ -355,7 +356,7 @@ impl RustParser {
             if prev_sibling.kind() == "line_comment" {
                 let comment_text = prev_sibling
                     .utf8_text(source.as_bytes())
-                    .map_err(|_| ParseError::TreeSitterError)?;
+                    .map_err(|_| ParseError::TreeSitter)?;
 
                 // Check if it's a doc comment (starts with ///)
                 if comment_text.trim_start().starts_with("///") {
@@ -369,7 +370,7 @@ impl RustParser {
             } else if prev_sibling.kind() == "block_comment" {
                 let comment_text = prev_sibling
                     .utf8_text(source.as_bytes())
-                    .map_err(|_| ParseError::TreeSitterError)?;
+                    .map_err(|_| ParseError::TreeSitter)?;
 
                 // Check if it's a doc comment (starts with /**)
                 if comment_text.trim_start().starts_with("/**") {
@@ -459,7 +460,7 @@ impl RustParser {
     ) -> Result<Option<String>, ParseError> {
         let attr_text = attr_node
             .utf8_text(source.as_bytes())
-            .map_err(|_| ParseError::TreeSitterError)?;
+            .map_err(|_| ParseError::TreeSitter)?;
 
         // Check if it's a doc attribute
         if attr_text.contains("doc") {
@@ -472,15 +473,15 @@ impl RustParser {
                     let after_eq = &remaining[eq_pos + 1..].trim_start();
 
                     // Extract string content between quotes
-                    if after_eq.starts_with('"') {
-                        if let Some(end_quote) = after_eq[1..].find('"') {
-                            let content = &after_eq[1..end_quote + 1];
+                    if let Some(stripped) = after_eq.strip_prefix('"') {
+                        if let Some(end_quote) = stripped.find('"') {
+                            let content = &stripped[..end_quote];
                             return Ok(Some(content.to_string()));
                         }
-                    } else if after_eq.starts_with("r#\"") {
+                    } else if let Some(stripped) = after_eq.strip_prefix("r#\"") {
                         // Handle raw strings r#"..."#
-                        if let Some(end_pos) = after_eq[3..].find("\"#") {
-                            let content = &after_eq[3..end_pos + 3];
+                        if let Some(end_pos) = stripped.find("\"#") {
+                            let content = &stripped[..end_pos];
                             return Ok(Some(content.to_string()));
                         }
                     }
@@ -517,13 +518,13 @@ impl RustParser {
         // Remove empty lines at the beginning and end
         while processed_lines
             .first()
-            .map_or(false, |line| line.trim().is_empty())
+            .is_some_and(|line| line.trim().is_empty())
         {
             processed_lines.remove(0);
         }
         while processed_lines
             .last()
-            .map_or(false, |line| line.trim().is_empty())
+            .is_some_and(|line| line.trim().is_empty())
         {
             processed_lines.pop();
         }

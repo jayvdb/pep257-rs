@@ -162,7 +162,7 @@ fn collect_rust_files(dir: &PathBuf) -> Result<Vec<PathBuf>, Box<dyn std::error:
         let entry = entry?;
         let path = entry.path();
 
-        if path.is_file() && path.extension().map_or(false, |ext| ext == "rs") {
+        if path.is_file() && path.extension().is_some_and(|ext| ext == "rs") {
             files.push(path);
         }
     }
@@ -183,7 +183,7 @@ fn collect_rust_files_recursive(dir: &PathBuf) -> Result<Vec<PathBuf>, Box<dyn s
 
             if path.is_dir() {
                 visit_dir(&path, files)?;
-            } else if path.is_file() && path.extension().map_or(false, |ext| ext == "rs") {
+            } else if path.is_file() && path.extension().is_some_and(|ext| ext == "rs") {
                 files.push(path);
             }
         }

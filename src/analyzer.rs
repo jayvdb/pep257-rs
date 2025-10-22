@@ -30,6 +30,7 @@ impl RustDocAnalyzer {
     }
 
     /// Analyze Rust source code and return all PEP 257 violations
+    #[allow(dead_code)]
     pub fn analyze_source(&mut self, source: &str) -> Result<Vec<Violation>, ParseError> {
         let docstrings = self.parser.parse_source(source)?;
         let mut violations = Vec::new();

@@ -21,8 +21,7 @@ impl fmt::Display for Violation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{}:{}:{} {} [{}]: {}",
-            "", // filename will be added by caller
+            ":{}:{} {} [{}]: {}", // filename will be added by caller
             self.line,
             self.column,
             match self.severity {
@@ -35,10 +34,11 @@ impl fmt::Display for Violation {
     }
 }
 
-/// Represents a docstring with its content and location
+/// Represents a docstring found in the code
 #[derive(Debug, Clone)]
 pub struct Docstring {
     pub content: String,
+    #[allow(dead_code)]
     pub raw_content: String,
     pub line: usize,
     pub column: usize,
@@ -55,6 +55,7 @@ pub enum DocstringTarget {
     Impl,
     Trait,
     Const,
+    #[allow(dead_code)]
     Static,
 }
 
@@ -76,7 +77,9 @@ impl fmt::Display for DocstringTarget {
 
 /// PEP 257 checker implementation
 pub struct Pep257Checker {
+    #[allow(dead_code)]
     whitespace_regex: Regex,
+    #[allow(dead_code)]
     leading_space_regex: Regex,
 }
 
@@ -262,17 +265,17 @@ impl Pep257Checker {
         }
 
         // D403: First word of the first line should be properly capitalized
-        if let Some(first_word) = first_line.split_whitespace().next() {
-            if !first_word.chars().next().unwrap_or(' ').is_uppercase() {
-                violations.push(Violation {
-                    rule: "D403".to_string(),
-                    message: "First word of the first line should be properly capitalized"
-                        .to_string(),
-                    line: docstring.line,
-                    column: docstring.column,
-                    severity: Severity::Error,
-                });
-            }
+        if let Some(first_word) = first_line.split_whitespace().next()
+            && !first_word.chars().next().unwrap_or(' ').is_uppercase()
+        {
+            violations.push(Violation {
+                rule: "D403".to_string(),
+                message: "First word of the first line should be properly capitalized"
+                    .to_string(),
+                line: docstring.line,
+                column: docstring.column,
+                severity: Severity::Error,
+            });
         }
 
         violations
