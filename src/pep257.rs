@@ -280,8 +280,7 @@ impl Pep257Checker {
         {
             violations.push(Violation {
                 rule: "D403".to_string(),
-                message: "First word of the first line should be properly capitalized"
-                    .to_string(),
+                message: "First word of the first line should be properly capitalized".to_string(),
                 line: docstring.line,
                 column: docstring.column,
                 severity: Severity::Error,

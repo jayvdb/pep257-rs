@@ -1,6 +1,7 @@
 use crate::pep257::{Docstring, DocstringTarget};
 use std::fs;
 use std::path::Path;
+use streaming_iterator::StreamingIterator;
 use tree_sitter::{Language, Parser, Query, QueryCursor, Tree};
 
 /// Errors that can occur during parsing.
@@ -24,11 +25,11 @@ pub struct RustParser {
 impl RustParser {
     /// Create a new Rust parser instance.
     pub fn new() -> Result<Self, ParseError> {
-        let language = tree_sitter_rust::language();
+        let language = tree_sitter_rust::LANGUAGE.into();
         let mut parser = Parser::new();
 
         parser
-            .set_language(language)
+            .set_language(&language)
             .map_err(|_| ParseError::TreeSitter)?;
 
         Ok(Self { parser, language })
@@ -68,7 +69,7 @@ impl RustParser {
         source: &str,
     ) -> Result<Vec<Docstring>, ParseError> {
         let query = Query::new(
-            self.language,
+            &self.language,
             r#"
             (function_item
               name: (identifier) @name
@@ -78,10 +79,10 @@ impl RustParser {
         .map_err(|e| ParseError::Query(e.to_string()))?;
 
         let mut cursor = QueryCursor::new();
-        let matches = cursor.matches(&query, tree.root_node(), source.as_bytes());
+        let mut matches = cursor.matches(&query, tree.root_node(), source.as_bytes());
         let mut docstrings = Vec::new();
 
-        for query_match in matches {
+        while let Some(query_match) = matches.next() {
             // Find the function node (not the name node)
             let function_node = query_match
                 .captures
@@ -104,7 +105,7 @@ impl RustParser {
     /// Extract documentation from struct declarations.
     fn extract_struct_docs(&self, tree: &Tree, source: &str) -> Result<Vec<Docstring>, ParseError> {
         let query = Query::new(
-            self.language,
+            &self.language,
             r#"
             (struct_item
               name: (type_identifier) @name
@@ -114,10 +115,10 @@ impl RustParser {
         .map_err(|e| ParseError::Query(e.to_string()))?;
 
         let mut cursor = QueryCursor::new();
-        let matches = cursor.matches(&query, tree.root_node(), source.as_bytes());
+        let mut matches = cursor.matches(&query, tree.root_node(), source.as_bytes());
         let mut docstrings = Vec::new();
 
-        for query_match in matches {
+        while let Some(query_match) = matches.next() {
             // Find the struct node (not the name node)
             let struct_node = query_match
                 .captures
@@ -140,7 +141,7 @@ impl RustParser {
     /// Extract documentation from enum declarations.
     fn extract_enum_docs(&self, tree: &Tree, source: &str) -> Result<Vec<Docstring>, ParseError> {
         let query = Query::new(
-            self.language,
+            &self.language,
             r#"
             (enum_item
               name: (type_identifier) @name
@@ -150,10 +151,10 @@ impl RustParser {
         .map_err(|e| ParseError::Query(e.to_string()))?;
 
         let mut cursor = QueryCursor::new();
-        let matches = cursor.matches(&query, tree.root_node(), source.as_bytes());
+        let mut matches = cursor.matches(&query, tree.root_node(), source.as_bytes());
         let mut docstrings = Vec::new();
 
-        for query_match in matches {
+        while let Some(query_match) = matches.next() {
             // Find the enum node (not the name node)
             let enum_node = query_match
                 .captures
@@ -176,7 +177,7 @@ impl RustParser {
     /// Extract documentation from trait declarations.
     fn extract_trait_docs(&self, tree: &Tree, source: &str) -> Result<Vec<Docstring>, ParseError> {
         let query = Query::new(
-            self.language,
+            &self.language,
             r#"
             (trait_item
               name: (type_identifier) @name
@@ -186,10 +187,10 @@ impl RustParser {
         .map_err(|e| ParseError::Query(e.to_string()))?;
 
         let mut cursor = QueryCursor::new();
-        let matches = cursor.matches(&query, tree.root_node(), source.as_bytes());
+        let mut matches = cursor.matches(&query, tree.root_node(), source.as_bytes());
         let mut docstrings = Vec::new();
 
-        for query_match in matches {
+        while let Some(query_match) = matches.next() {
             // Find the trait node (not the name node)
             let trait_node = query_match
                 .captures
@@ -212,7 +213,7 @@ impl RustParser {
     /// Extract documentation from impl blocks.
     fn extract_impl_docs(&self, tree: &Tree, source: &str) -> Result<Vec<Docstring>, ParseError> {
         let query = Query::new(
-            self.language,
+            &self.language,
             r#"
             (impl_item) @impl
             "#,
@@ -220,10 +221,10 @@ impl RustParser {
         .map_err(|e| ParseError::Query(e.to_string()))?;
 
         let mut cursor = QueryCursor::new();
-        let matches = cursor.matches(&query, tree.root_node(), source.as_bytes());
+        let mut matches = cursor.matches(&query, tree.root_node(), source.as_bytes());
         let mut docstrings = Vec::new();
 
-        for query_match in matches {
+        while let Some(query_match) = matches.next() {
             let impl_node = query_match.captures[0].node;
 
             // Look for documentation comments before this node
@@ -240,7 +241,7 @@ impl RustParser {
     /// Extract documentation from module declarations.
     fn extract_mod_docs(&self, tree: &Tree, source: &str) -> Result<Vec<Docstring>, ParseError> {
         let query = Query::new(
-            self.language,
+            &self.language,
             r#"
             (mod_item
               name: (identifier) @name
@@ -250,10 +251,10 @@ impl RustParser {
         .map_err(|e| ParseError::Query(e.to_string()))?;
 
         let mut cursor = QueryCursor::new();
-        let matches = cursor.matches(&query, tree.root_node(), source.as_bytes());
+        let mut matches = cursor.matches(&query, tree.root_node(), source.as_bytes());
         let mut docstrings = Vec::new();
 
-        for query_match in matches {
+        while let Some(query_match) = matches.next() {
             // Find the module node (not the name node)
             let mod_node = query_match
                 .captures
@@ -276,7 +277,7 @@ impl RustParser {
     /// Extract documentation from const declarations.
     fn extract_const_docs(&self, tree: &Tree, source: &str) -> Result<Vec<Docstring>, ParseError> {
         let query = Query::new(
-            self.language,
+            &self.language,
             r#"
             (const_item
               name: (identifier) @name
@@ -286,10 +287,10 @@ impl RustParser {
         .map_err(|e| ParseError::Query(e.to_string()))?;
 
         let mut cursor = QueryCursor::new();
-        let matches = cursor.matches(&query, tree.root_node(), source.as_bytes());
+        let mut matches = cursor.matches(&query, tree.root_node(), source.as_bytes());
         let mut docstrings = Vec::new();
 
-        for query_match in matches {
+        while let Some(query_match) = matches.next() {
             // Find the const node (not the name node)
             let const_node = query_match
                 .captures
@@ -319,10 +320,10 @@ impl RustParser {
         target_type: DocstringTarget,
     ) -> Result<Vec<Docstring>, ParseError> {
         let mut cursor = QueryCursor::new();
-        let matches = cursor.matches(query, tree.root_node(), source.as_bytes());
+        let mut matches = cursor.matches(query, tree.root_node(), source.as_bytes());
         let mut docstrings = Vec::new();
 
-        for query_match in matches {
+        while let Some(query_match) = matches.next() {
             // Get the main node (the function/struct/etc itself, not just the name)
             let main_node = query_match
                 .captures

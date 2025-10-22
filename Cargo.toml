@@ -7,9 +7,10 @@ edition = "2024"
 license = "MIT"
 
 [dependencies]
-tree-sitter = "0.20"
-tree-sitter-rust = "0.20"
-clap = { version = "4.4", features = ["derive"] }
-regex = "1.10"
-thiserror = "1.0"
+clap = { version = "4.5", features = ["derive"] }
+regex = "1.11"
 serde_json = "1.0"
+streaming-iterator = "0.1"
+thiserror = "2.0"
+tree-sitter = "0.24"
+tree-sitter-rust = "0.23"
