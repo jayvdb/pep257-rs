@@ -1,5 +1,7 @@
 [package]
 name = "pep257"
+description = "PEP 257 docstring style checker for Rust code"
+repository = "https://github.com/jayvdb/pep257-rs"
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
