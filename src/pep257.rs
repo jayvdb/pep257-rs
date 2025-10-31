@@ -264,14 +264,33 @@ impl Pep257Checker {
         }
 
         // D402: First line should not be the function's signature
-        if first_line.contains('(') && first_line.contains(')') {
-            violations.push(Violation {
-                rule: "D402".to_string(),
-                message: "First line should not be the function's signature".to_string(),
-                line: docstring.line,
-                column: docstring.column,
-                severity: Severity::Error,
-            });
+        // Only check functions, and avoid false positives from Markdown links [text](url)
+        if docstring.target_type == DocstringTarget::Function {
+            // Remove Markdown links to avoid false positives
+            let without_md_links = self.remove_markdown_links(first_line);
+
+            // Check if it looks like a function signature (has parentheses with possible parameters)
+            // and doesn't just contain parentheses for other reasons
+            if without_md_links.contains('(') && without_md_links.contains(')') {
+                // Additional heuristic: likely a signature if it has -> or starts with a likely function name pattern
+                let looks_like_signature = without_md_links.contains("->")
+                    || without_md_links
+                        .trim_start()
+                        .chars()
+                        .next()
+                        .map(|c| c.is_lowercase() || c == '_')
+                        .unwrap_or(false);
+
+                if looks_like_signature {
+                    violations.push(Violation {
+                        rule: "D402".to_string(),
+                        message: "First line should not be the function's signature".to_string(),
+                        line: docstring.line,
+                        column: docstring.column,
+                        severity: Severity::Error,
+                    });
+                }
+            }
         }
 
         // D403: First word of the first line should be properly capitalized
@@ -306,6 +325,53 @@ impl Pep257Checker {
         ];
 
         non_imperative_starts.contains(&first_word.as_str())
+    }
+
+    /// Remove Markdown links from a string to avoid false positives in checks.
+    /// Converts "[text](url)" to "text"
+    fn remove_markdown_links(&self, text: &str) -> String {
+        let mut result = String::new();
+        let mut chars = text.chars().peekable();
+
+        while let Some(ch) = chars.next() {
+            if ch == '[' {
+                // Collect text until ]
+                let mut link_text = String::new();
+                let mut found_bracket = false;
+
+                for ch in chars.by_ref() {
+                    if ch == ']' {
+                        found_bracket = true;
+                        break;
+                    }
+                    link_text.push(ch);
+                }
+
+                // Check if followed by (url)
+                if found_bracket && chars.peek() == Some(&'(') {
+                    chars.next(); // consume '('
+                    // Skip until ')'
+                    for ch in chars.by_ref() {
+                        if ch == ')' {
+                            break;
+                        }
+                    }
+                    // Add just the link text
+                    result.push_str(&link_text);
+                } else {
+                    // Not a markdown link, keep the bracket
+                    result.push('[');
+                    result.push_str(&link_text);
+                    if found_bracket {
+                        result.push(']');
+                    }
+                }
+            } else {
+                result.push(ch);
+            }
+        }
+
+        result
     }
 }
 
@@ -364,5 +430,54 @@ mod tests {
 
         let violations = checker.check_docstring(&docstring);
         assert!(violations.iter().any(|v| v.rule == "D400"));
+    }
+
+    /// Test remove_markdown_links helper
+    #[test]
+    fn test_remove_markdown_links() {
+        let checker = Pep257Checker::new();
+        let input = "For use with [SqlType::Custom](crate::SqlType).";
+        let expected = "For use with SqlType::Custom.";
+        let output = checker.remove_markdown_links(input);
+        assert_eq!(output, expected);
+
+        let input2 = "No links here.";
+        assert_eq!(checker.remove_markdown_links(input2), input2);
+
+        let input3 = "Multiple [A](x) and [B](y) links.";
+        let expected3 = "Multiple A and B links.";
+        assert_eq!(checker.remove_markdown_links(input3), expected3);
+    }
+
+    /// D402: Should NOT trigger on markdown link docstring
+    #[test]
+    fn test_d402_no_false_positive_markdown_link() {
+        let checker = Pep257Checker::new();
+        let docstring = Docstring {
+            content: "For use with [SqlType::Custom](crate::SqlType).".to_string(),
+            raw_content: "/// For use with [SqlType::Custom](crate::SqlType).".to_string(),
+            line: 1,
+            column: 1,
+            is_multiline: false,
+            target_type: DocstringTarget::Function,
+        };
+        let violations = checker.check_docstring(&docstring);
+        assert!(!violations.iter().any(|v| v.rule == "D402"));
+    }
+
+    /// D402: Should trigger on actual function signature
+    #[test]
+    fn test_d402_true_positive_signature() {
+        let checker = Pep257Checker::new();
+        let docstring = Docstring {
+            content: "my_func(x: i32, y: i32) -> i32".to_string(),
+            raw_content: "/// my_func(x: i32, y: i32) -> i32".to_string(),
+            line: 1,
+            column: 1,
+            is_multiline: false,
+            target_type: DocstringTarget::Function,
+        };
+        let violations = checker.check_docstring(&docstring);
+        assert!(violations.iter().any(|v| v.rule == "D402"));
     }
 }
