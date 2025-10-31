@@ -6,17 +6,21 @@ mod parser;
 mod pep257;
 
 use analyzer::RustDocAnalyzer;
-use clap::{Parser as ClapParser, Subcommand};
+use clap::{Parser as ClapParser, Subcommand, ValueEnum};
+use clap_verbosity_flag::Verbosity;
 use pep257::Severity;
 use std::path::PathBuf;
 use std::process;
 
 /// Command-line interface configuration.
-#[derive(ClapParser)]
+#[derive(ClapParser, Debug)]
 #[command(name = "pep257")]
 #[command(about = "A tool to check Rust docstrings against PEP 257 conventions")]
-#[command(version = "0.1.0")]
+#[command(version)]
 struct Cli {
+    #[command(flatten)]
+    verbose: Verbosity,
+
     #[command(subcommand)]
     command: Option<Commands>,
 
@@ -35,10 +39,15 @@ struct Cli {
     /// Exit with code 0 even if violations are found
     #[arg(long)]
     no_fail: bool,
+
+    /// Generate markdown help
+    #[cfg(feature = "clap-markdown")]
+    #[arg(long, hide = true)]
+    markdown_help: bool,
 }
 
 /// Available subcommands for the CLI.
-#[derive(Subcommand)]
+#[derive(Debug, Subcommand)]
 enum Commands {
     /// Check a single file
     Check {
@@ -56,7 +65,7 @@ enum Commands {
 }
 
 /// Output format options.
-#[derive(clap::ValueEnum, Clone)]
+#[derive(Clone, Debug, ValueEnum)]
 enum OutputFormat {
     Text,
     Json,
@@ -65,6 +74,17 @@ enum OutputFormat {
 /// Entry point for the application.
 fn main() {
     let cli = Cli::parse();
+
+    #[cfg(feature = "clap-markdown")]
+    if cli.markdown_help {
+        clap_markdown::print_help_markdown::<Cli>();
+        process::exit(0);
+    }
+
+    // Initialize the logger based on verbosity level
+    env_logger::Builder::new()
+        .filter_level(cli.verbose.into())
+        .init();
 
     if let Err(e) = run(cli) {
         eprintln!("Error: {}", e);
