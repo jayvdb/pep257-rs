@@ -25,7 +25,7 @@ impl fmt::Display for Violation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            ":{}:{} {} [{}]: {}", // filename will be added by caller
+            "{}:{} {} [{}]: {}", // filename will be added by caller
             self.line,
             self.column,
             match self.severity {
@@ -1154,5 +1154,177 @@ mod tests {
         };
         let violations = checker.check_docstring(&docstring);
         assert!(!violations.iter().any(|v| v.rule == "D406"));
+    }
+
+    /// Test Display implementation for Violation with Error severity
+    #[test]
+    fn test_violation_display_error() {
+        let violation = Violation {
+            rule: "D400".to_string(),
+            message: "First line should end with a period".to_string(),
+            line: 42,
+            column: 5,
+            severity: Severity::Error,
+        };
+
+        let formatted = format!("{}", violation);
+        assert_eq!(formatted, "42:5 error [D400]: First line should end with a period");
+    }
+
+    /// Test Display implementation for Violation with Warning severity
+    #[test]
+    fn test_violation_display_warning() {
+        let violation = Violation {
+            rule: "D401".to_string(),
+            message: "First line should be in imperative mood".to_string(),
+            line: 10,
+            column: 1,
+            severity: Severity::Warning,
+        };
+
+        let formatted = format!("{}", violation);
+        assert_eq!(
+            formatted,
+            "10:1 warning [D401]: First line should be in imperative mood"
+        );
+    }
+
+    /// Test Display implementation with multi-digit line and column numbers
+    #[test]
+    fn test_violation_display_large_numbers() {
+        let violation = Violation {
+            rule: "D205".to_string(),
+            message: "1 blank line required between summary line and description".to_string(),
+            line: 1234,
+            column: 567,
+            severity: Severity::Error,
+        };
+
+        let formatted = format!("{}", violation);
+        assert_eq!(
+            formatted,
+            "1234:567 error [D205]: 1 blank line required between summary line and description"
+        );
+    }
+
+    /// Test Display implementation with special characters in message
+    #[test]
+    fn test_violation_display_special_chars() {
+        let violation = Violation {
+            rule: "D405".to_string(),
+            message: "Markdown link text looks like code but lacks backticks: [SqlType::Custom] should be [`SqlType::Custom`]".to_string(),
+            line: 5,
+            column: 20,
+            severity: Severity::Warning,
+        };
+
+        let formatted = format!("{}", violation);
+        assert!(formatted.starts_with("5:20 warning [D405]:"));
+        assert!(formatted.contains("[SqlType::Custom]"));
+        assert!(formatted.contains("[`SqlType::Custom`]"));
+    }
+
+    /// Test Display implementation preserves exact message content
+    #[test]
+    fn test_violation_display_message_preservation() {
+        let message = "Use inline code for common Rust type: [Option](...) should be `Option`";
+        let violation = Violation {
+            rule: "D406".to_string(),
+            message: message.to_string(),
+            line: 99,
+            column: 8,
+            severity: Severity::Warning,
+        };
+
+        let formatted = format!("{}", violation);
+        assert_eq!(formatted, format!("99:8 warning [D406]: {}", message));
+    }
+
+    /// Test Display implementation with line 1, column 1
+    #[test]
+    fn test_violation_display_start_position() {
+        let violation = Violation {
+            rule: "D100".to_string(),
+            message: "Missing docstring in public function".to_string(),
+            line: 1,
+            column: 1,
+            severity: Severity::Error,
+        };
+
+        let formatted = format!("{}", violation);
+        assert_eq!(formatted, "1:1 error [D100]: Missing docstring in public function");
+    }
+
+    /// Test that to_string() works correctly (uses Display)
+    #[test]
+    fn test_violation_to_string() {
+        let violation = Violation {
+            rule: "D402".to_string(),
+            message: "First line should not be the function's signature".to_string(),
+            line: 7,
+            column: 4,
+            severity: Severity::Error,
+        };
+
+        let as_string = violation.to_string();
+        assert_eq!(
+            as_string,
+            "7:4 error [D402]: First line should not be the function's signature"
+        );
+    }
+
+    /// Test Display formatting consistency across multiple violations
+    #[test]
+    fn test_violation_display_consistency() {
+        let violations = vec![
+            Violation {
+                rule: "D201".to_string(),
+                message: "No blank lines allowed before function docstring".to_string(),
+                line: 15,
+                column: 1,
+                severity: Severity::Error,
+            },
+            Violation {
+                rule: "D301".to_string(),
+                message: "Consider using raw strings for docstrings with backslashes".to_string(),
+                line: 20,
+                column: 1,
+                severity: Severity::Warning,
+            },
+            Violation {
+                rule: "D403".to_string(),
+                message: "First word of the first line should be properly capitalized".to_string(),
+                line: 25,
+                column: 1,
+                severity: Severity::Error,
+            },
+        ];
+
+        // Verify each violation formats correctly and consistently
+        let formatted: Vec<String> = violations.iter().map(|v| format!("{}", v)).collect();
+
+        assert_eq!(
+            formatted[0],
+            "15:1 error [D201]: No blank lines allowed before function docstring"
+        );
+        assert_eq!(
+            formatted[1],
+            "20:1 warning [D301]: Consider using raw strings for docstrings with backslashes"
+        );
+        assert_eq!(
+            formatted[2],
+            "25:1 error [D403]: First word of the first line should be properly capitalized"
+        );
+
+        // Verify the format pattern is consistent
+        for display_str in formatted {
+            let parts: Vec<&str> = display_str.split(':').collect();
+            assert!(parts.len() >= 3, "Should have line:column:rest format");
+            assert!(
+                display_str.contains("error") || display_str.contains("warning"),
+                "Should contain severity"
+            );
+            assert!(display_str.contains('[') && display_str.contains(']'), "Should contain rule in brackets");
+        }
     }
 }
