@@ -47,6 +47,7 @@ pub struct Docstring {
     pub line: usize,
     pub column: usize,
     pub is_multiline: bool,
+    pub is_public: bool,
     pub target_type: DocstringTarget,
 }
 
@@ -113,7 +114,7 @@ impl Pep257Checker {
         let mut violations = Vec::new();
 
         // Skip empty docstrings
-        if docstring.content.trim().is_empty() {
+        if docstring.content.trim().is_empty() && docstring.is_public {
             violations.push(Violation {
                 rule: "D100".to_string(),
                 message: format!("Missing docstring in public {}", docstring.target_type),
@@ -746,12 +747,33 @@ mod tests {
             line: 1,
             column: 1,
             is_multiline: false,
+            // This test verifies that D100 is reported for public items
+            is_public: true,
             target_type: DocstringTarget::Function,
         };
 
         let violations = checker.check_docstring(&docstring);
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].rule, "D100");
+    }
+
+    /// Test that empty docstring for a private function does NOT trigger D100
+    #[test]
+    fn test_empty_docstring_private_no_d100() {
+        let checker = Pep257Checker::new();
+        let docstring = Docstring {
+            content: "".to_string(),
+            raw_content: "".to_string(),
+            line: 1,
+            column: 1,
+            is_multiline: false,
+            is_public: false,
+            target_type: DocstringTarget::Function,
+        };
+
+        let violations = checker.check_docstring(&docstring);
+        // Private functions should not trigger D100 for missing docstrings
+        assert!(!violations.iter().any(|v| v.rule == "D100"));
     }
 
     /// Test a properly formatted docstring.
@@ -764,6 +786,7 @@ mod tests {
             line: 1,
             column: 1,
             is_multiline: false,
+            is_public: false,
             target_type: DocstringTarget::Function,
         };
 
@@ -781,6 +804,7 @@ mod tests {
             line: 1,
             column: 1,
             is_multiline: false,
+            is_public: false,
             target_type: DocstringTarget::Function,
         };
 
@@ -798,6 +822,7 @@ mod tests {
             line: 1,
             column: 1,
             is_multiline: false,
+            is_public: false,
             target_type: DocstringTarget::Function,
         };
 
@@ -816,6 +841,7 @@ mod tests {
             line: 1,
             column: 1,
             is_multiline: false,
+            is_public: false,
             target_type: DocstringTarget::Function,
         };
 
@@ -844,6 +870,7 @@ mod tests {
                 line: 1,
                 column: 1,
                 is_multiline: false,
+                is_public: false,
                 target_type: DocstringTarget::Function,
             };
             let violations = checker.check_docstring(&docstring);
@@ -882,6 +909,7 @@ mod tests {
             line: 1,
             column: 1,
             is_multiline: false,
+            is_public: false,
             target_type: DocstringTarget::Function,
         };
         let violations = checker.check_docstring(&docstring);
@@ -898,6 +926,7 @@ mod tests {
             line: 1,
             column: 1,
             is_multiline: false,
+            is_public: false,
             target_type: DocstringTarget::Function,
         };
         let violations = checker.check_docstring(&docstring);
@@ -914,6 +943,7 @@ mod tests {
             line: 1,
             column: 1,
             is_multiline: false,
+            is_public: false,
             target_type: DocstringTarget::Function,
         };
         let violations = checker.check_docstring(&docstring);
@@ -932,6 +962,7 @@ mod tests {
             line: 1,
             column: 1,
             is_multiline: false,
+            is_public: false,
             target_type: DocstringTarget::Function,
         };
         let violations = checker.check_docstring(&docstring);
@@ -949,6 +980,7 @@ mod tests {
             line: 1,
             column: 1,
             is_multiline: false,
+            is_public: false,
             target_type: DocstringTarget::Function,
         };
         let violations = checker.check_docstring(&docstring);
@@ -965,6 +997,7 @@ mod tests {
             line: 1,
             column: 1,
             is_multiline: false,
+            is_public: false,
             target_type: DocstringTarget::Function,
         };
         let violations = checker.check_docstring(&docstring);
@@ -982,6 +1015,7 @@ mod tests {
             line: 1,
             column: 1,
             is_multiline: false,
+            is_public: false,
             target_type: DocstringTarget::Function,
         };
         let violations = checker.check_docstring(&docstring);
@@ -1002,6 +1036,7 @@ mod tests {
             line: 1,
             column: 1,
             is_multiline: false,
+            is_public: false,
             target_type: DocstringTarget::Function,
         };
         let violations = checker.check_docstring(&docstring);
@@ -1018,6 +1053,7 @@ mod tests {
             line: 1,
             column: 1,
             is_multiline: false,
+            is_public: false,
             target_type: DocstringTarget::Function,
         };
         let violations = checker.check_docstring(&docstring);
@@ -1035,6 +1071,7 @@ mod tests {
             line: 1,
             column: 1,
             is_multiline: false,
+            is_public: false,
             target_type: DocstringTarget::Function,
         };
         let violations = checker.check_docstring(&docstring);
@@ -1051,6 +1088,7 @@ mod tests {
             line: 1,
             column: 1,
             is_multiline: false,
+            is_public: false,
             target_type: DocstringTarget::Function,
         };
         let violations = checker.check_docstring(&docstring);
@@ -1069,6 +1107,7 @@ mod tests {
             line: 1,
             column: 1,
             is_multiline: false,
+            is_public: false,
             target_type: DocstringTarget::Function,
         };
         let violations = checker.check_docstring(&docstring);
@@ -1085,6 +1124,7 @@ mod tests {
             line: 1,
             column: 1,
             is_multiline: false,
+            is_public: false,
             target_type: DocstringTarget::Function,
         };
         let violations = checker.check_docstring(&docstring);
@@ -1101,6 +1141,7 @@ mod tests {
             line: 1,
             column: 1,
             is_multiline: false,
+            is_public: false,
             target_type: DocstringTarget::Function,
         };
         let violations = checker.check_docstring(&docstring);
@@ -1117,6 +1158,7 @@ mod tests {
             line: 1,
             column: 1,
             is_multiline: false,
+            is_public: false,
             target_type: DocstringTarget::Function,
         };
         let violations = checker.check_docstring(&docstring);
@@ -1134,6 +1176,7 @@ mod tests {
             line: 1,
             column: 1,
             is_multiline: false,
+            is_public: false,
             target_type: DocstringTarget::Function,
         };
         let violations = checker.check_docstring(&docstring);
@@ -1150,6 +1193,7 @@ mod tests {
             line: 1,
             column: 1,
             is_multiline: false,
+            is_public: false,
             target_type: DocstringTarget::Function,
         };
         let violations = checker.check_docstring(&docstring);
@@ -1168,7 +1212,10 @@ mod tests {
         };
 
         let formatted = format!("{}", violation);
-        assert_eq!(formatted, "42:5 error [D400]: First line should end with a period");
+        assert_eq!(
+            formatted,
+            "42:5 error [D400]: First line should end with a period"
+        );
     }
 
     /// Test Display implementation for Violation with Warning severity
@@ -1252,7 +1299,10 @@ mod tests {
         };
 
         let formatted = format!("{}", violation);
-        assert_eq!(formatted, "1:1 error [D100]: Missing docstring in public function");
+        assert_eq!(
+            formatted,
+            "1:1 error [D100]: Missing docstring in public function"
+        );
     }
 
     /// Test that to_string() works correctly (uses Display)
@@ -1324,7 +1374,10 @@ mod tests {
                 display_str.contains("error") || display_str.contains("warning"),
                 "Should contain severity"
             );
-            assert!(display_str.contains('[') && display_str.contains(']'), "Should contain rule in brackets");
+            assert!(
+                display_str.contains('[') && display_str.contains(']'),
+                "Should contain rule in brackets"
+            );
         }
     }
 }
