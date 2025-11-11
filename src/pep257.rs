@@ -1431,10 +1431,10 @@ mod tests {
     fn test_wrapped_summary_no_false_positives() {
         let checker = Pep257Checker::new();
         let docstring = Docstring {
-            content: "Summary line that continues on to the next line properly\ndue to wrapping."
+            content: "Summary line that continues on to the next line incorrectly\ndue to wrapping."
                 .to_string(),
             raw_content:
-                "/// Summary line that continues on to the next line properly\n/// due to wrapping."
+                "/// Summary line that continues on to the next line incorrectly\n/// due to wrapping."
                     .to_string(),
             line: 1,
             column: 1,
