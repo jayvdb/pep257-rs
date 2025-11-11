@@ -410,6 +410,26 @@ impl RustParser {
             current_node = prev_sibling;
         }
 
+        // Determine visibility (public/private) for the node
+        let mut is_public = false;
+        if let Some(visibility_node) = node.child_by_field_name("visibility") {
+            if let Ok(vis_text) = visibility_node.utf8_text(source.as_bytes()) {
+                if vis_text.contains("pub") {
+                    is_public = true;
+                }
+            }
+        } else {
+            // Fallback: check the node text for a leading `pub` token (some nodes
+            // may represent visibility as a token rather than a named field)
+            if let Ok(node_text) = node.utf8_text(source.as_bytes()) {
+                if node_text.trim_start().starts_with("pub ")
+                    || node_text.trim_start().starts_with("pub(")
+                {
+                    is_public = true;
+                }
+            }
+        }
+
         // Combine doc attributes and comments
         let has_documentation = !doc_comments.is_empty() || !doc_attributes.is_empty();
 
@@ -422,6 +442,7 @@ impl RustParser {
                 line: start_point.row + 1,
                 column: start_point.column + 1,
                 is_multiline: false,
+                is_public,
                 target_type: target_type.clone(),
             }));
         }
@@ -450,6 +471,7 @@ impl RustParser {
             line: start_point.row + 1, // Convert to 1-based indexing
             column: start_point.column + 1,
             is_multiline,
+            is_public,
             target_type: target_type.clone(),
         }))
     }
@@ -557,13 +579,33 @@ fn add(a: i32, b: i32) -> i32 {
         assert!(!docstrings[0].is_multiline);
     }
 
+    /// Test parsing a public function sets is_public = true.
+    #[test]
+    fn test_parse_public_function_sets_is_public() {
+        let mut parser = RustParser::new().unwrap();
+        let source = r#"
+/// Public function docs.
+pub fn public_add(a: i32, b: i32) -> i32 {
+    a + b
+}
+"#;
+
+        let docstrings = parser.parse_source(source).unwrap();
+        assert_eq!(docstrings.len(), 1);
+        assert_eq!(docstrings[0].content, "Public function docs.");
+        assert!(
+            docstrings[0].is_public,
+            "Expected is_public to be true for pub fn"
+        );
+    }
+
     /// Test parsing a multiline function documentation.
     #[test]
     fn test_parse_multiline_function() {
         let mut parser = RustParser::new().unwrap();
         let source = r#"
 /// Calculate the sum of two numbers.
-/// 
+///
 /// This function takes two integers and returns their sum.
 /// It's a simple arithmetic operation.
 fn add(a: i32, b: i32) -> i32 {
