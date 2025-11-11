@@ -144,9 +144,6 @@ impl Pep257Checker {
             return violations;
         }
 
-        let first_line = lines[0];
-        let trimmed_first = first_line.trim();
-
         // D201: No blank lines allowed before function docstring
         if docstring.target_type == DocstringTarget::Function && content.starts_with('\n') {
             violations.push(Violation {
@@ -169,15 +166,58 @@ impl Pep257Checker {
             });
         }
 
-        // D205: 1 blank line required between summary line and description
-        if lines.len() > 2 && !trimmed_first.is_empty() && !lines[1].trim().is_empty() {
-            violations.push(Violation {
-                rule: "D205".to_string(),
-                message: "1 blank line required between summary line and description".to_string(),
-                line: docstring.line + 1,
-                column: docstring.column,
-                severity: Severity::Error,
-            });
+        // D205: 1 blank line required between summary paragraph and description
+        // Find the end of the summary paragraph (first blank line separates paragraphs)
+        let mut summary_end_index = None::<usize>;
+        for (line_index, line_contents) in lines.iter().enumerate() {
+            if line_contents.trim().is_empty() {
+                // summary paragraph ends at the previous non-empty line
+                summary_end_index = Some(if line_index == 0 { 0 } else { line_index - 1 });
+                break;
+            }
+        }
+
+        if let Some(summary_end_index) = summary_end_index {
+            // There is a blank line; ensure that the line after the summary is blank (it will be)
+            if summary_end_index + 1 < lines.len()
+                && !lines[summary_end_index + 1].trim().is_empty()
+            {
+                // No blank line separating summary and description
+                violations.push(Violation {
+                    rule: "D205".to_string(),
+                    message: "1 blank line required between summary line and description"
+                        .to_string(),
+                    line: docstring.line + summary_end_index + 1,
+                    column: docstring.column,
+                    severity: Severity::Error,
+                });
+            }
+        } else {
+            // No blank line found. If there's more than one non-empty line, we need to decide
+            // whether it's a wrapped summary (allowed) or a summary followed immediately by a
+            // description (should be flagged). Heuristic: if the FIRST non-empty line ends with
+            // terminal punctuation (., !, ?) and there is a subsequent non-empty line, then
+            // treat that subsequent line as a description that must be separated by a blank line.
+            let non_empty_lines: Vec<&str> = lines
+                .iter()
+                .filter(|l| !l.trim().is_empty())
+                .cloned()
+                .collect();
+            if non_empty_lines.len() > 1 {
+                if let Some(first) = non_empty_lines.first().map(|l| l.trim()) {
+                    if first.ends_with('.') || first.ends_with('!') || first.ends_with('?') {
+                        // Missing blank line between summary and description
+                        violations.push(Violation {
+                            rule: "D205".to_string(),
+                            message: "1 blank line required between summary line and description"
+                                .to_string(),
+                            line: docstring.line + 1,
+                            column: docstring.column,
+                            severity: Severity::Error,
+                        });
+                    }
+                }
+            }
         }
 
         violations
@@ -238,18 +278,23 @@ impl Pep257Checker {
             return violations;
         }
 
-        let first_line = lines[0].trim();
+        // Find the first non-empty line to treat as the start of the summary
+        let mut first_non_empty_idx = 0usize;
+        for (i, l) in lines.iter().enumerate() {
+            if !l.trim().is_empty() {
+                first_non_empty_idx = i;
+                break;
+            }
+        }
 
-        // D400: First line should end with a period
-        if !first_line.is_empty()
-            && !first_line.ends_with('.')
-            && !first_line.ends_with('!')
-            && !first_line.ends_with('?')
-        {
+        let first_line = lines[first_non_empty_idx].trim();
+
+        // D400: Check that the first non-empty line (the summary) ends with a period.
+        if !first_line.is_empty() && !first_line.ends_with('.') {
             violations.push(Violation {
                 rule: "D400".to_string(),
                 message: "First line should end with a period".to_string(),
-                line: docstring.line,
+                line: docstring.line + first_non_empty_idx,
                 column: docstring.column,
                 severity: Severity::Error,
             });
@@ -1379,5 +1424,50 @@ mod tests {
                 "Should contain rule in brackets"
             );
         }
+    }
+
+    /// Summary paragraph wraps across lines — should trigger D400 but not D205
+    #[test]
+    fn test_wrapped_summary_no_false_positives() {
+        let checker = Pep257Checker::new();
+        let docstring = Docstring {
+            content: "Summary line that continues on to the next line incorrectly\ndue to wrapping."
+                .to_string(),
+            raw_content:
+                "/// Summary line that continues on to the next line incorrectly\n/// due to wrapping."
+                    .to_string(),
+            line: 1,
+            column: 1,
+            is_multiline: true,
+            is_public: true,
+            target_type: DocstringTarget::Function,
+        };
+
+        let violations = checker.check_docstring(&docstring);
+        // Summary must be single-line, so wrapped summaries should trigger D400
+        // But it should NOT trigger D205 since there's no description following
+        assert!(violations.iter().any(|v| v.rule == "D400"));
+        assert!(!violations.iter().any(|v| v.rule == "D205"));
+    }
+
+    /// Missing blank line between summary paragraph and description should trigger D205
+    #[test]
+    fn test_missing_blank_line_triggers_d205() {
+        let checker = Pep257Checker::new();
+        let docstring = Docstring {
+            content: "Summary line that ends properly.\nThis is a description line immediately following the summary without a blank line.".to_string(),
+            raw_content: "/// Summary line that ends properly.\n/// This is a description line immediately following the summary without a blank line.".to_string(),
+            line: 1,
+            column: 1,
+            is_multiline: true,
+            is_public: true,
+            target_type: DocstringTarget::Function,
+        };
+
+        let violations = checker.check_docstring(&docstring);
+        assert!(
+            violations.iter().any(|v| v.rule == "D205"),
+            "Expected D205 when description immediately follows summary"
+        );
     }
 }
