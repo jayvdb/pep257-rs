@@ -289,32 +289,12 @@ impl Pep257Checker {
 
         let first_line = lines[first_non_empty_idx].trim();
 
-        // Determine end of summary paragraph: first blank line after the first non-empty line
-        let mut summary_end_idx = first_non_empty_idx;
-        for i in first_non_empty_idx..lines.len() {
-            if lines[i].trim().is_empty() {
-                // summary paragraph ends at previous non-empty line
-                if i == first_non_empty_idx {
-                    summary_end_idx = first_non_empty_idx;
-                } else {
-                    summary_end_idx = i - 1;
-                }
-                break;
-            }
-            summary_end_idx = i;
-        }
-
-        // D400: First summary paragraph should end with a period (or ! or ?)
-        let summary_last_line = lines[summary_end_idx].trim();
-        if !summary_last_line.is_empty()
-            && !summary_last_line.ends_with('.')
-            && !summary_last_line.ends_with('!')
-            && !summary_last_line.ends_with('?')
-        {
+        // D400: Check that the first non-empty line (the summary) ends with a period.
+        if !first_line.is_empty() && !first_line.ends_with('.') {
             violations.push(Violation {
                 rule: "D400".to_string(),
                 message: "First line should end with a period".to_string(),
-                line: docstring.line + summary_end_idx,
+                line: docstring.line + first_non_empty_idx,
                 column: docstring.column,
                 severity: Severity::Error,
             });
@@ -1446,22 +1426,27 @@ mod tests {
         }
     }
 
-    /// Summary paragraph wraps across lines but ends with a period — should NOT trigger D400 or D205
+    /// Summary paragraph wraps across lines — should trigger D400 but not D205
     #[test]
     fn test_wrapped_summary_no_false_positives() {
         let checker = Pep257Checker::new();
         let docstring = Docstring {
-            content: "Summary line that continues on to the next line properly\ndue to wrapping.".to_string(),
-            raw_content: "/// Summary line that continues on to the next line properly.\n/// due to wrapping.".to_string(),
+            content: "Summary line that continues on to the next line properly\ndue to wrapping."
+                .to_string(),
+            raw_content:
+                "/// Summary line that continues on to the next line properly\n/// due to wrapping."
+                    .to_string(),
             line: 1,
             column: 1,
             is_multiline: true,
+            is_public: true,
             target_type: DocstringTarget::Function,
         };
 
         let violations = checker.check_docstring(&docstring);
-        // Should not trigger D400 (summary ends with a period at paragraph end) or D205
-        assert!(!violations.iter().any(|v| v.rule == "D400"));
+        // Summary must be single-line, so wrapped summaries should trigger D400
+        // But it should NOT trigger D205 since there's no description following
+        assert!(violations.iter().any(|v| v.rule == "D400"));
         assert!(!violations.iter().any(|v| v.rule == "D205"));
     }
 
@@ -1475,6 +1460,7 @@ mod tests {
             line: 1,
             column: 1,
             is_multiline: true,
+            is_public: true,
             target_type: DocstringTarget::Function,
         };
 
