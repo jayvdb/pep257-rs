@@ -203,20 +203,19 @@ impl Pep257Checker {
                 .filter(|l| !l.trim().is_empty())
                 .cloned()
                 .collect();
-            if non_empty_lines.len() > 1 {
-                if let Some(first) = non_empty_lines.first().map(|l| l.trim()) {
-                    if first.ends_with('.') || first.ends_with('!') || first.ends_with('?') {
-                        // Missing blank line between summary and description
-                        violations.push(Violation {
-                            rule: "D205".to_string(),
-                            message: "1 blank line required between summary line and description"
-                                .to_string(),
-                            line: docstring.line + 1,
-                            column: docstring.column,
-                            severity: Severity::Error,
-                        });
-                    }
-                }
+            if non_empty_lines.len() > 1
+                && let Some(first) = non_empty_lines.first().map(|l| l.trim())
+                && (first.ends_with('.') || first.ends_with('!') || first.ends_with('?'))
+            {
+                // Missing blank line between summary and description
+                violations.push(Violation {
+                    rule: "D205".to_string(),
+                    message: "1 blank line required between summary line and description"
+                        .to_string(),
+                    line: docstring.line + 1,
+                    column: docstring.column,
+                    severity: Severity::Error,
+                });
             }
         }
 
@@ -599,14 +598,14 @@ impl Pep257Checker {
         }
 
         // Check for PascalCase (starts with uppercase, has lowercase)
-        if let Some(first_char) = trimmed.chars().next() {
-            if first_char.is_uppercase() {
-                // Check if it has a mix of upper and lowercase (PascalCase pattern)
-                let has_lower = trimmed.chars().any(|c| c.is_lowercase());
-                let has_upper_after_first = trimmed.chars().skip(1).any(|c| c.is_uppercase());
-                if has_lower && has_upper_after_first {
-                    return true;
-                }
+        if let Some(first_char) = trimmed.chars().next()
+            && first_char.is_uppercase()
+        {
+            // Check if it has a mix of upper and lowercase (PascalCase pattern)
+            let has_lower = trimmed.chars().any(|c| c.is_lowercase());
+            let has_upper_after_first = trimmed.chars().skip(1).any(|c| c.is_uppercase());
+            if has_lower && has_upper_after_first {
+                return true;
             }
         }
 
@@ -1371,7 +1370,7 @@ mod tests {
     /// Test Display formatting consistency across multiple violations
     #[test]
     fn test_violation_display_consistency() {
-        let violations = vec![
+        let violations = [
             Violation {
                 rule: "D201".to_string(),
                 message: "No blank lines allowed before function docstring".to_string(),

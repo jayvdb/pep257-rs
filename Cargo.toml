@@ -4,6 +4,7 @@ description = "PEP 257 docstring style checker for Rust code"
 repository = "https://github.com/jayvdb/pep257-rs"
 version = "0.1.2"
 edition = "2024"
+rust-version = "1.92"
 license = "MIT"
 
 [dependencies]

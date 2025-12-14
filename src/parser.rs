@@ -413,20 +413,19 @@ impl RustParser {
         // Determine visibility (public/private) for the node
         let mut is_public = false;
         if let Some(visibility_node) = node.child_by_field_name("visibility") {
-            if let Ok(vis_text) = visibility_node.utf8_text(source.as_bytes()) {
-                if vis_text.contains("pub") {
-                    is_public = true;
-                }
+            if let Ok(vis_text) = visibility_node.utf8_text(source.as_bytes())
+                && vis_text.contains("pub")
+            {
+                is_public = true;
             }
         } else {
             // Fallback: check the node text for a leading `pub` token (some nodes
             // may represent visibility as a token rather than a named field)
-            if let Ok(node_text) = node.utf8_text(source.as_bytes()) {
-                if node_text.trim_start().starts_with("pub ")
-                    || node_text.trim_start().starts_with("pub(")
-                {
-                    is_public = true;
-                }
+            if let Ok(node_text) = node.utf8_text(source.as_bytes())
+                && (node_text.trim_start().starts_with("pub ")
+                    || node_text.trim_start().starts_with("pub("))
+            {
+                is_public = true;
             }
         }
 
