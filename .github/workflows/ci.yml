@@ -37,6 +37,7 @@ jobs:
   test:
     uses: taiki-e/github-actions/.github/workflows/test.yml@main
     with:
+      direct-minimal-versions: false
       minimal-versions: false
       no-std: false
   tidy:
