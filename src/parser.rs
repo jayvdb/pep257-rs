@@ -1,12 +1,12 @@
 use crate::pep257::{Docstring, DocstringTarget};
 use std::fs;
 use std::path::Path;
-use streaming_iterator::StreamingIterator;
+use streaming_iterator::StreamingIterator as _;
 use tree_sitter::{Language, Parser, Query, QueryCursor, Tree};
 
 /// Errors that can occur during parsing.
 #[derive(thiserror::Error, Debug)]
-pub enum ParseError {
+pub(crate) enum ParseError {
     #[error("Failed to read file: {0}")]
     Io(#[from] std::io::Error),
     #[error("Failed to parse file: tree-sitter error")]
@@ -16,7 +16,7 @@ pub enum ParseError {
 }
 
 /// Rust parser using tree-sitter.
-pub struct RustParser {
+pub(crate) struct RustParser {
     parser: Parser,
     language: Language,
 }
@@ -24,29 +24,27 @@ pub struct RustParser {
 /// Implementation of parser methods.
 impl RustParser {
     /// Create a new Rust parser instance.
-    pub fn new() -> Result<Self, ParseError> {
+    pub(crate) fn new() -> Result<Self, ParseError> {
         let language = tree_sitter_rust::LANGUAGE.into();
         let mut parser = Parser::new();
 
-        parser
-            .set_language(&language)
-            .map_err(|_| ParseError::TreeSitter)?;
+        parser.set_language(&language).map_err(|_| ParseError::TreeSitter)?;
 
         Ok(Self { parser, language })
     }
 
-    /// Parse a Rust file and extract all docstrings.
-    pub fn parse_file<P: AsRef<Path>>(&mut self, path: P) -> Result<Vec<Docstring>, ParseError> {
+    /// Parses a Rust file and extracts docstrings.
+    pub(crate) fn parse_file<P: AsRef<Path>>(
+        &mut self,
+        path: P,
+    ) -> Result<Vec<Docstring>, ParseError> {
         let source_code = fs::read_to_string(path)?;
         self.parse_source(&source_code)
     }
 
-    /// Parse Rust source code and extract all docstrings.
-    pub fn parse_source(&mut self, source_code: &str) -> Result<Vec<Docstring>, ParseError> {
-        let tree = self
-            .parser
-            .parse(source_code, None)
-            .ok_or(ParseError::TreeSitter)?;
+    /// Parses Rust source code and extracts docstrings.
+    pub(crate) fn parse_source(&mut self, source_code: &str) -> Result<Vec<Docstring>, ParseError> {
+        let tree = self.parser.parse(source_code, None).ok_or(ParseError::TreeSitter)?;
 
         let mut docstrings = Vec::new();
 
@@ -70,11 +68,11 @@ impl RustParser {
     ) -> Result<Vec<Docstring>, ParseError> {
         let query = Query::new(
             &self.language,
-            r#"
+            r"
             (function_item
               name: (identifier) @name
             ) @function
-            "#,
+            ",
         )
         .map_err(|e| ParseError::Query(e.to_string()))?;
 
@@ -87,13 +85,12 @@ impl RustParser {
             let function_node = query_match
                 .captures
                 .iter()
-                .find(|capture| capture.index == 1) // The @function capture
-                .map(|capture| capture.node)
-                .unwrap_or_else(|| query_match.captures[0].node);
+                .find(|capture| capture.index == 1)
+                .map_or_else(|| query_match.captures[0].node, |capture| capture.node);
 
             // Look for documentation comments before this node
             if let Some(docstring) =
-                self.extract_preceding_docs(function_node, source, &DocstringTarget::Function)?
+                Self::extract_preceding_docs(function_node, source, DocstringTarget::Function)?
             {
                 docstrings.push(docstring);
             }
@@ -106,11 +103,11 @@ impl RustParser {
     fn extract_struct_docs(&self, tree: &Tree, source: &str) -> Result<Vec<Docstring>, ParseError> {
         let query = Query::new(
             &self.language,
-            r#"
+            r"
             (struct_item
               name: (type_identifier) @name
             ) @struct
-            "#,
+            ",
         )
         .map_err(|e| ParseError::Query(e.to_string()))?;
 
@@ -123,13 +120,12 @@ impl RustParser {
             let struct_node = query_match
                 .captures
                 .iter()
-                .find(|capture| capture.index == 1) // The @struct capture
-                .map(|capture| capture.node)
-                .unwrap_or_else(|| query_match.captures[0].node);
+                .find(|capture| capture.index == 1)
+                .map_or_else(|| query_match.captures[0].node, |capture| capture.node);
 
             // Look for documentation comments before this node
             if let Some(docstring) =
-                self.extract_preceding_docs(struct_node, source, &DocstringTarget::Struct)?
+                Self::extract_preceding_docs(struct_node, source, DocstringTarget::Struct)?
             {
                 docstrings.push(docstring);
             }
@@ -142,11 +138,11 @@ impl RustParser {
     fn extract_enum_docs(&self, tree: &Tree, source: &str) -> Result<Vec<Docstring>, ParseError> {
         let query = Query::new(
             &self.language,
-            r#"
+            r"
             (enum_item
               name: (type_identifier) @name
             ) @enum
-            "#,
+            ",
         )
         .map_err(|e| ParseError::Query(e.to_string()))?;
 
@@ -159,13 +155,12 @@ impl RustParser {
             let enum_node = query_match
                 .captures
                 .iter()
-                .find(|capture| capture.index == 1) // The @enum capture
-                .map(|capture| capture.node)
-                .unwrap_or_else(|| query_match.captures[0].node);
+                .find(|capture| capture.index == 1)
+                .map_or_else(|| query_match.captures[0].node, |capture| capture.node);
 
             // Look for documentation comments before this node
             if let Some(docstring) =
-                self.extract_preceding_docs(enum_node, source, &DocstringTarget::Enum)?
+                Self::extract_preceding_docs(enum_node, source, DocstringTarget::Enum)?
             {
                 docstrings.push(docstring);
             }
@@ -178,11 +173,11 @@ impl RustParser {
     fn extract_trait_docs(&self, tree: &Tree, source: &str) -> Result<Vec<Docstring>, ParseError> {
         let query = Query::new(
             &self.language,
-            r#"
+            r"
             (trait_item
               name: (type_identifier) @name
             ) @trait
-            "#,
+            ",
         )
         .map_err(|e| ParseError::Query(e.to_string()))?;
 
@@ -195,13 +190,12 @@ impl RustParser {
             let trait_node = query_match
                 .captures
                 .iter()
-                .find(|capture| capture.index == 1) // The @trait capture
-                .map(|capture| capture.node)
-                .unwrap_or_else(|| query_match.captures[0].node);
+                .find(|capture| capture.index == 1)
+                .map_or_else(|| query_match.captures[0].node, |capture| capture.node);
 
             // Look for documentation comments before this node
             if let Some(docstring) =
-                self.extract_preceding_docs(trait_node, source, &DocstringTarget::Trait)?
+                Self::extract_preceding_docs(trait_node, source, DocstringTarget::Trait)?
             {
                 docstrings.push(docstring);
             }
@@ -214,9 +208,9 @@ impl RustParser {
     fn extract_impl_docs(&self, tree: &Tree, source: &str) -> Result<Vec<Docstring>, ParseError> {
         let query = Query::new(
             &self.language,
-            r#"
+            r"
             (impl_item) @impl
-            "#,
+            ",
         )
         .map_err(|e| ParseError::Query(e.to_string()))?;
 
@@ -229,7 +223,7 @@ impl RustParser {
 
             // Look for documentation comments before this node
             if let Some(docstring) =
-                self.extract_preceding_docs(impl_node, source, &DocstringTarget::Impl)?
+                Self::extract_preceding_docs(impl_node, source, DocstringTarget::Impl)?
             {
                 docstrings.push(docstring);
             }
@@ -242,11 +236,11 @@ impl RustParser {
     fn extract_mod_docs(&self, tree: &Tree, source: &str) -> Result<Vec<Docstring>, ParseError> {
         let query = Query::new(
             &self.language,
-            r#"
+            r"
             (mod_item
               name: (identifier) @name
             ) @module
-            "#,
+            ",
         )
         .map_err(|e| ParseError::Query(e.to_string()))?;
 
@@ -259,13 +253,12 @@ impl RustParser {
             let mod_node = query_match
                 .captures
                 .iter()
-                .find(|capture| capture.index == 1) // The @module capture
-                .map(|capture| capture.node)
-                .unwrap_or_else(|| query_match.captures[0].node);
+                .find(|capture| capture.index == 1)
+                .map_or_else(|| query_match.captures[0].node, |capture| capture.node);
 
             // Look for documentation comments before this node
             if let Some(docstring) =
-                self.extract_preceding_docs(mod_node, source, &DocstringTarget::Module)?
+                Self::extract_preceding_docs(mod_node, source, DocstringTarget::Module)?
             {
                 docstrings.push(docstring);
             }
@@ -278,11 +271,11 @@ impl RustParser {
     fn extract_const_docs(&self, tree: &Tree, source: &str) -> Result<Vec<Docstring>, ParseError> {
         let query = Query::new(
             &self.language,
-            r#"
+            r"
             (const_item
               name: (identifier) @name
             ) @const
-            "#,
+            ",
         )
         .map_err(|e| ParseError::Query(e.to_string()))?;
 
@@ -295,13 +288,12 @@ impl RustParser {
             let const_node = query_match
                 .captures
                 .iter()
-                .find(|capture| capture.index == 1) // The @const capture
-                .map(|capture| capture.node)
-                .unwrap_or_else(|| query_match.captures[0].node);
+                .find(|capture| capture.index == 1)
+                .map_or_else(|| query_match.captures[0].node, |capture| capture.node);
 
             // Look for documentation comments before this node
             if let Some(docstring) =
-                self.extract_preceding_docs(const_node, source, &DocstringTarget::Const)?
+                Self::extract_preceding_docs(const_node, source, DocstringTarget::Const)?
             {
                 docstrings.push(docstring);
             }
@@ -313,7 +305,6 @@ impl RustParser {
     /// Generic function to extract documentation using a tree-sitter query.
     #[allow(dead_code)]
     fn extract_docs_with_query(
-        &self,
         tree: &Tree,
         source: &str,
         query: &Query,
@@ -328,12 +319,11 @@ impl RustParser {
             let main_node = query_match
                 .captures
                 .iter()
-                .find(|capture| capture.index == 0) // The first capture is typically the main node
-                .map(|capture| capture.node)
-                .unwrap_or_else(|| query_match.captures[0].node);
+                .find(|capture| capture.index == 0)
+                .map_or_else(|| query_match.captures[0].node, |capture| capture.node);
 
             // Look for documentation comments before this node
-            if let Some(docstring) = self.extract_preceding_docs(main_node, source, &target_type)? {
+            if let Some(docstring) = Self::extract_preceding_docs(main_node, source, target_type)? {
                 docstrings.push(docstring);
             }
         }
@@ -343,10 +333,9 @@ impl RustParser {
 
     /// Extract documentation comments preceding a given node.
     fn extract_preceding_docs(
-        &self,
-        node: tree_sitter::Node,
+        node: tree_sitter::Node<'_>,
         source: &str,
-        target_type: &DocstringTarget,
+        target_type: DocstringTarget,
     ) -> Result<Option<Docstring>, ParseError> {
         let mut doc_comments = Vec::new();
         let mut doc_attributes = Vec::new();
@@ -381,25 +370,20 @@ impl RustParser {
                         first_doc_node = Some(prev_sibling);
                     }
                     break; // Block comments usually stand alone
-                } else {
-                    break;
                 }
+                break;
             } else if prev_sibling.kind() == "attribute_item"
                 || prev_sibling.kind() == "outer_attribute_item"
             {
                 // Check for #[doc = "..."] attributes
-                if let Some(doc_content) = self.extract_doc_attribute(&prev_sibling, source)? {
+                if let Some(doc_content) = Self::extract_doc_attribute(&prev_sibling, source)? {
                     doc_attributes.insert(0, doc_content);
                     if first_doc_node.is_none() {
                         first_doc_node = Some(prev_sibling);
                     }
                 }
             } else if prev_sibling.kind() == "whitespace"
-                || prev_sibling
-                    .utf8_text(source.as_bytes())
-                    .unwrap_or("")
-                    .trim()
-                    .is_empty()
+                || prev_sibling.utf8_text(source.as_bytes()).unwrap_or("").trim().is_empty()
             {
                 // Skip whitespace and continue looking
                 current_node = prev_sibling;
@@ -442,21 +426,21 @@ impl RustParser {
                 column: start_point.column + 1,
                 is_multiline: false,
                 is_public,
-                target_type: target_type.clone(),
+                target_type,
             }));
         }
 
         // Process the documentation (attributes take precedence, then comments)
-        let raw_content = if !doc_attributes.is_empty() {
-            doc_attributes.join("\n")
-        } else {
+        let raw_content = if doc_attributes.is_empty() {
             doc_comments.join("\n")
+        } else {
+            doc_attributes.join("\n")
         };
 
-        let processed_content = if !doc_attributes.is_empty() {
-            doc_attributes.join("\n")
+        let processed_content = if doc_attributes.is_empty() {
+            Self::process_doc_comments(&doc_comments)
         } else {
-            self.process_doc_comments(&doc_comments)
+            doc_attributes.join("\n")
         };
 
         let is_multiline = processed_content.lines().count() > 1;
@@ -471,19 +455,17 @@ impl RustParser {
             column: start_point.column + 1,
             is_multiline,
             is_public,
-            target_type: target_type.clone(),
+            target_type,
         }))
     }
 
     /// Extract documentation from a #[doc = "..."] attribute.
     fn extract_doc_attribute(
-        &self,
-        attr_node: &tree_sitter::Node,
+        attr_node: &tree_sitter::Node<'_>,
         source: &str,
     ) -> Result<Option<String>, ParseError> {
-        let attr_text = attr_node
-            .utf8_text(source.as_bytes())
-            .map_err(|_| ParseError::TreeSitter)?;
+        let attr_text =
+            attr_node.utf8_text(source.as_bytes()).map_err(|_| ParseError::TreeSitter)?;
 
         // Check if it's a doc attribute
         if attr_text.contains("doc") {
@@ -516,7 +498,7 @@ impl RustParser {
     }
 
     /// Process documentation comments to extract clean content.
-    fn process_doc_comments(&self, comments: &[&str]) -> String {
+    fn process_doc_comments(comments: &[&str]) -> String {
         let mut processed_lines = Vec::new();
 
         for comment in comments {
@@ -539,16 +521,10 @@ impl RustParser {
         }
 
         // Remove empty lines at the beginning and end
-        while processed_lines
-            .first()
-            .is_some_and(|line| line.trim().is_empty())
-        {
+        while processed_lines.first().is_some_and(|line| line.trim().is_empty()) {
             processed_lines.remove(0);
         }
-        while processed_lines
-            .last()
-            .is_some_and(|line| line.trim().is_empty())
-        {
+        while processed_lines.last().is_some_and(|line| line.trim().is_empty()) {
             processed_lines.pop();
         }
 
@@ -565,12 +541,12 @@ mod tests {
     #[test]
     fn test_parse_simple_function() {
         let mut parser = RustParser::new().unwrap();
-        let source = r#"
+        let source = r"
 /// Calculate the sum of two numbers.
 fn add(a: i32, b: i32) -> i32 {
     a + b
 }
-"#;
+";
 
         let docstrings = parser.parse_source(source).unwrap();
         assert_eq!(docstrings.len(), 1);
@@ -582,27 +558,24 @@ fn add(a: i32, b: i32) -> i32 {
     #[test]
     fn test_parse_public_function_sets_is_public() {
         let mut parser = RustParser::new().unwrap();
-        let source = r#"
+        let source = r"
 /// Public function docs.
 pub fn public_add(a: i32, b: i32) -> i32 {
     a + b
 }
-"#;
+";
 
         let docstrings = parser.parse_source(source).unwrap();
         assert_eq!(docstrings.len(), 1);
         assert_eq!(docstrings[0].content, "Public function docs.");
-        assert!(
-            docstrings[0].is_public,
-            "Expected is_public to be true for pub fn"
-        );
+        assert!(docstrings[0].is_public, "Expected is_public to be true for pub fn");
     }
 
     /// Test parsing a multiline function documentation.
     #[test]
     fn test_parse_multiline_function() {
         let mut parser = RustParser::new().unwrap();
-        let source = r#"
+        let source = r"
 /// Calculate the sum of two numbers.
 ///
 /// This function takes two integers and returns their sum.
@@ -610,7 +583,7 @@ pub fn public_add(a: i32, b: i32) -> i32 {
 fn add(a: i32, b: i32) -> i32 {
     a + b
 }
-"#;
+";
 
         let docstrings = parser.parse_source(source).unwrap();
         assert_eq!(docstrings.len(), 1);
@@ -623,13 +596,13 @@ fn add(a: i32, b: i32) -> i32 {
     #[test]
     fn test_parse_struct() {
         let mut parser = RustParser::new().unwrap();
-        let source = r#"
+        let source = r"
 /// Represents a point in 2D space.
 struct Point {
     x: f64,
     y: f64,
 }
-"#;
+";
 
         let docstrings = parser.parse_source(source).unwrap();
         assert_eq!(docstrings.len(), 1);

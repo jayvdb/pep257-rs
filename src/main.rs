@@ -84,31 +84,29 @@ fn main() {
     }
 
     // Initialize the logger based on verbosity level
-    env_logger::Builder::new()
-        .filter_level(cli.verbose.into())
-        .init();
+    env_logger::Builder::new().filter_level(cli.verbose.into()).init();
 
-    if let Err(e) = run(cli) {
-        eprintln!("Error: {}", e);
+    if let Err(e) = run(&cli) {
+        eprintln!("Error: {e}");
         process::exit(1);
     }
 }
 
 /// Run the main logic of the application.
-fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
+fn run(cli: &Cli) -> Result<(), Box<dyn std::error::Error>> {
     let mut analyzer = RustDocAnalyzer::new()?;
     let mut total_violations = 0;
 
     match &cli.command {
         Some(Commands::Check { file }) => {
-            total_violations += check_file(&mut analyzer, file, &cli)?;
+            total_violations += check_file(&mut analyzer, file, cli)?;
         }
         Some(Commands::CheckDir { dir, recursive }) => {
-            total_violations += check_directory(&mut analyzer, dir, *recursive, &cli)?;
+            total_violations += check_directory(&mut analyzer, dir, *recursive, cli)?;
         }
         None => {
             if let Some(ref file) = cli.file {
-                total_violations += check_file(&mut analyzer, file, &cli)?;
+                total_violations += check_file(&mut analyzer, file, cli)?;
             } else {
                 eprintln!("No file or command specified. Use --help for usage information.");
                 process::exit(1);
@@ -174,11 +172,8 @@ fn check_directory(
 ) -> Result<usize, Box<dyn std::error::Error>> {
     let mut total_violations = 0;
 
-    let entries = if recursive {
-        collect_rust_files_recursive(dir)?
-    } else {
-        collect_rust_files(dir)?
-    };
+    let entries =
+        if recursive { collect_rust_files_recursive(dir)? } else { collect_rust_files(dir)? };
 
     for file in entries {
         total_violations += check_file(analyzer, &file, cli)?;
@@ -203,28 +198,24 @@ fn collect_rust_files(dir: &PathBuf) -> Result<Vec<PathBuf>, Box<dyn std::error:
     Ok(files)
 }
 
+/// Visit a directory and collect Rust files recursively.
+fn visit_dir(dir: &PathBuf, files: &mut Vec<PathBuf>) -> Result<(), Box<dyn std::error::Error>> {
+    for entry in std::fs::read_dir(dir)? {
+        let entry = entry?;
+        let path = entry.path();
+
+        if path.is_dir() {
+            visit_dir(&path, files)?;
+        } else if path.is_file() && path.extension().is_some_and(|ext| ext == "rs") {
+            files.push(path);
+        }
+    }
+    Ok(())
+}
+
 /// Collect Rust files in a directory recursively.
 fn collect_rust_files_recursive(dir: &PathBuf) -> Result<Vec<PathBuf>, Box<dyn std::error::Error>> {
     let mut files = Vec::new();
-
-    /// Visit a directory and collect Rust files recursively.
-    fn visit_dir(
-        dir: &PathBuf,
-        files: &mut Vec<PathBuf>,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        for entry in std::fs::read_dir(dir)? {
-            let entry = entry?;
-            let path = entry.path();
-
-            if path.is_dir() {
-                visit_dir(&path, files)?;
-            } else if path.is_file() && path.extension().is_some_and(|ext| ext == "rs") {
-                files.push(path);
-            }
-        }
-        Ok(())
-    }
-
     visit_dir(dir, &mut files)?;
     Ok(files)
 }
