@@ -1,3 +1,9 @@
+use std::path::PathBuf;
+use std::process;
+
+use clap::{Parser as ClapParser, Subcommand, ValueEnum};
+use clap_verbosity_flag::Verbosity;
+
 /// Analyzer module for Rust documentation.
 mod analyzer;
 /// Parser module for extracting docstrings.
@@ -5,12 +11,8 @@ mod parser;
 /// PEP 257 checker implementation.
 mod pep257;
 
-use analyzer::RustDocAnalyzer;
-use clap::{Parser as ClapParser, Subcommand, ValueEnum};
-use clap_verbosity_flag::Verbosity;
-use pep257::Severity;
-use std::path::PathBuf;
-use std::process;
+use crate::analyzer::RustDocAnalyzer;
+use crate::pep257::Severity;
 
 /// Command-line interface configuration.
 #[derive(ClapParser, Debug)]

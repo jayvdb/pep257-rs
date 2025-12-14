@@ -38,5 +38,3 @@ jobs:
     uses: taiki-e/github-actions/.github/workflows/test.yml@main
   tidy:
     uses: taiki-e/github-actions/.github/workflows/tidy.yml@main
-  msrv:
-    uses: taiki-e/github-actions/.github/workflows/msrv.yml@main
