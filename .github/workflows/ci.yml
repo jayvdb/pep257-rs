@@ -36,5 +36,7 @@ concurrency:
 jobs:
   test:
     uses: taiki-e/github-actions/.github/workflows/test.yml@main
+    with:
+      no-std: false
   tidy:
     uses: taiki-e/github-actions/.github/workflows/tidy.yml@main
