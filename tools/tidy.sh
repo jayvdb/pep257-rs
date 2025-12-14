@@ -140,58 +140,58 @@ fi
 yq() { pipx run yq "$@"; }
 tomlq() { pipx run --spec yq tomlq "$@"; }
 case "$(uname -s)" in
-  Linux)
-    if [[ "$(uname -o)" == 'Android' ]]; then
-      ostype=android
-    else
-      ostype=linux
+Linux)
+  if [[ "$(uname -o)" == 'Android' ]]; then
+    ostype=android
+  else
+    ostype=linux
+  fi
+  ;;
+Darwin) ostype=macos ;;
+FreeBSD) ostype=freebsd ;;
+NetBSD) ostype=netbsd ;;
+OpenBSD) ostype=openbsd ;;
+DragonFly) ostype=dragonfly ;;
+SunOS)
+  if [[ "$(/usr/bin/uname -o)" == 'illumos' ]]; then
+    ostype=illumos
+  else
+    ostype=solaris
+    # Solaris /usr/bin/* are not POSIX-compliant (e.g., grep has no -q, -E, -F),
+    # and POSIX-compliant commands are in /usr/xpg{4,6,7}/bin.
+    # https://docs.oracle.com/cd/E88353_01/html/E37853/xpg-7.html
+    if [[ "${PATH}" != *'/usr/xpg4/bin'* ]]; then
+      export PATH="/usr/xpg4/bin:${PATH}"
     fi
-    ;;
-  Darwin) ostype=macos ;;
-  FreeBSD) ostype=freebsd ;;
-  NetBSD) ostype=netbsd ;;
-  OpenBSD) ostype=openbsd ;;
-  DragonFly) ostype=dragonfly ;;
-  SunOS)
-    if [[ "$(/usr/bin/uname -o)" == 'illumos' ]]; then
-      ostype=illumos
-    else
-      ostype=solaris
-      # Solaris /usr/bin/* are not POSIX-compliant (e.g., grep has no -q, -E, -F),
-      # and POSIX-compliant commands are in /usr/xpg{4,6,7}/bin.
-      # https://docs.oracle.com/cd/E88353_01/html/E37853/xpg-7.html
-      if [[ "${PATH}" != *'/usr/xpg4/bin'* ]]; then
-        export PATH="/usr/xpg4/bin:${PATH}"
+    # GNU/BSD sed is required.
+    # GNU/BSD grep is required by some checks, but most checks are okay with other POSIX grep.
+    # Solaris /usr/xpg4/bin/grep has -q, -E, -F, but no -o (non-POSIX).
+    # Solaris /usr/xpg4/bin/sed has no -E (POSIX.1-2024) yet.
+    for tool in 'grep' 'sed'; do
+      if type -P "g${tool}" >/dev/null; then
+        eval "${tool}() { g${tool} \"\$@\"; }"
       fi
-      # GNU/BSD sed is required.
-      # GNU/BSD grep is required by some checks, but most checks are okay with other POSIX grep.
-      # Solaris /usr/xpg4/bin/grep has -q, -E, -F, but no -o (non-POSIX).
-      # Solaris /usr/xpg4/bin/sed has no -E (POSIX.1-2024) yet.
-      for tool in 'grep' 'sed'; do
-        if type -P "g${tool}" >/dev/null; then
-          eval "${tool}() { g${tool} \"\$@\"; }"
-        fi
-      done
-    fi
-    ;;
-  MINGW* | MSYS* | CYGWIN* | Windows_NT)
-    ostype=windows
-    if type -P jq >/dev/null; then
-      # https://github.com/jqlang/jq/issues/1854
-      _tmp=$(jq -r .a <<<'{}')
-      if [[ "${_tmp}" != 'null' ]]; then
-        _tmp=$(jq -b -r .a 2>/dev/null <<<'{}' || true)
-        if [[ "${_tmp}" == 'null' ]]; then
-          jq() { command jq -b "$@"; }
-        else
-          jq() { command jq "$@" | tr -d '\r'; }
-        fi
-        yq() { pipx run yq "$@" | tr -d '\r'; }
-        tomlq() { pipx run --spec yq tomlq "$@" | tr -d '\r'; }
+    done
+  fi
+  ;;
+MINGW* | MSYS* | CYGWIN* | Windows_NT)
+  ostype=windows
+  if type -P jq >/dev/null; then
+    # https://github.com/jqlang/jq/issues/1854
+    _tmp=$(jq -r .a <<<'{}')
+    if [[ "${_tmp}" != 'null' ]]; then
+      _tmp=$(jq -b -r .a 2>/dev/null <<<'{}' || true)
+      if [[ "${_tmp}" == 'null' ]]; then
+        jq() { command jq -b "$@"; }
+      else
+        jq() { command jq "$@" | tr -d '\r'; }
       fi
+      yq() { pipx run yq "$@" | tr -d '\r'; }
+      tomlq() { pipx run --spec yq tomlq "$@" | tr -d '\r'; }
     fi
-    ;;
-  *) error "unrecognized os type '$(uname -s)' for \`\$(uname -s)\`" ;;
+  fi
+  ;;
+*) error "unrecognized os type '$(uname -s)' for \`\$(uname -s)\`" ;;
 esac
 
 check_install git
@@ -302,14 +302,14 @@ if [[ -n "$(ls_files '*.rs')" ]]; then
         # Top-level hidden files/directories and tools/* are excluded from crates.io (ensured by the above check).
         # TODO: fully respect exclude field in Cargo.toml.
         case "${p}" in
-          .* | tools/* | target-specs/*) continue ;;
-          */*) ;;
-          *)
-            # If there is no crate at root, executables at the repository root directory if always okay.
-            if [[ -z "${has_root_crate}" ]]; then
-              continue
-            fi
-            ;;
+        .* | tools/* | target-specs/*) continue ;;
+        */*) ;;
+        *)
+          # If there is no crate at root, executables at the repository root directory if always okay.
+          if [[ -z "${has_root_crate}" ]]; then
+            continue
+          fi
+          ;;
         esac
         if [[ -x "${p}" ]]; then
           executables+="${p}"$'\n'
@@ -409,13 +409,13 @@ if [[ -n "$(ls_files '*.rs')" ]]; then
         alert=$(tr '[:lower:]' '[:upper:]' <<<"${alert%%]*}")
         alert_lower=$(tr '[:upper:]' '[:lower:]' <<<"${alert}")
         case "${alert}" in
-          NOTE | TIP | IMPORTANT) alert_sign='ⓘ' ;;
-          WARNING | CAUTION) alert_sign='⚠' ;;
-          *)
-            error "unknown alert type '${alert}' found; please use one of the types listed in <https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#alerts>"
-            new+="${line}"$'\a'
-            continue
-            ;;
+        NOTE | TIP | IMPORTANT) alert_sign='ⓘ' ;;
+        WARNING | CAUTION) alert_sign='⚠' ;;
+        *)
+          error "unknown alert type '${alert}' found; please use one of the types listed in <https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#alerts>"
+          new+="${line}"$'\a'
+          continue
+          ;;
         esac
         in_alert=1
         new+="<div class=\"rustdoc-alert rustdoc-alert-${alert_lower}\">"$'\a\a'
@@ -540,20 +540,20 @@ grep_ere_files=()
 sed_ere_files=()
 for p in $(ls_files '*.sh' '*Dockerfile*'); do
   case "${p}" in
-    tests/fixtures/* | */tests/fixtures/* | *.json) continue ;;
+  tests/fixtures/* | */tests/fixtures/* | *.json) continue ;;
   esac
   case "${p##*/}" in
-    *.sh)
-      shell_files+=("${p}")
-      re='^#!/.*bash'
-      if [[ "$(head -1 "${p}")" =~ ${re} ]]; then
-        bash_files+=("${p}")
-      fi
-      ;;
-    *Dockerfile*)
-      docker_files+=("${p}")
-      bash_files+=("${p}") # TODO
-      ;;
+  *.sh)
+    shell_files+=("${p}")
+    re='^#!/.*bash'
+    if [[ "$(head -1 "${p}")" =~ ${re} ]]; then
+      bash_files+=("${p}")
+    fi
+    ;;
+  *Dockerfile*)
+    docker_files+=("${p}")
+    bash_files+=("${p}") # TODO
+    ;;
   esac
   if grep -Eq '(^|[^0-9A-Za-z\."'\''-])(grep) -[A-Za-z]*E[^\)]' "${p}"; then
     grep_ere_files+=("${p}")
@@ -667,7 +667,7 @@ elif check_install shellcheck; then
         fi
         text="#!${shell}"$'\n'"${text}"
         case "${ostype}" in
-          windows) text=${text//$'\r'/} ;; # Parse error on git bash/msys2 bash.
+        windows) text=${text//$'\r'/} ;; # Parse error on git bash/msys2 bash.
         esac
         local color=auto
         if [[ -t 1 ]] || [[ -n "${GITHUB_ACTIONS:-}" ]]; then
@@ -691,94 +691,94 @@ elif check_install shellcheck; then
         for instruction in $(jq -c '.instructions[]' <<<"${dockerfile}"); do
           instruction_kind=$(jq -r '.kind' <<<"${instruction}")
           case "${instruction_kind}" in
-            FROM)
-              # https://docs.docker.com/reference/dockerfile/#from
-              # > Each FROM instruction clears any state created by previous instructions.
-              normal_shell=''
-              continue
-              ;;
-            ADD | ARG | CMD | COPY | ENTRYPOINT | ENV | EXPOSE | HEALTHCHECK | LABEL) ;;
-            # https://docs.docker.com/reference/build-checks/maintainer-deprecated/
-            MAINTAINER) error "MAINTAINER instruction is deprecated in favor of using label" ;;
-            RUN) ;;
-            SHELL)
-              normal_shell=''
-              for argument in $(jq -c '.arguments[]' <<<"${instruction}"); do
-                value=$(jq -r '.value' <<<"${argument}")
-                if [[ -z "${normal_shell}" ]]; then
-                  case "${value}" in
-                    cmd | cmd.exe | powershell | powershell.exe)
-                      # not unix shell
-                      normal_shell="${value}"
-                      break
-                      ;;
-                  esac
-                else
-                  normal_shell+=' '
-                fi
-                normal_shell+="${value}"
-              done
-              ;;
-            STOPSIGNAL | USER | VOLUME | WORKDIR) ;;
-            *) error "unknown instruction ${instruction_kind}" ;;
+          FROM)
+            # https://docs.docker.com/reference/dockerfile/#from
+            # > Each FROM instruction clears any state created by previous instructions.
+            normal_shell=''
+            continue
+            ;;
+          ADD | ARG | CMD | COPY | ENTRYPOINT | ENV | EXPOSE | HEALTHCHECK | LABEL) ;;
+          # https://docs.docker.com/reference/build-checks/maintainer-deprecated/
+          MAINTAINER) error "MAINTAINER instruction is deprecated in favor of using label" ;;
+          RUN) ;;
+          SHELL)
+            normal_shell=''
+            for argument in $(jq -c '.arguments[]' <<<"${instruction}"); do
+              value=$(jq -r '.value' <<<"${argument}")
+              if [[ -z "${normal_shell}" ]]; then
+                case "${value}" in
+                cmd | cmd.exe | powershell | powershell.exe)
+                  # not unix shell
+                  normal_shell="${value}"
+                  break
+                  ;;
+                esac
+              else
+                normal_shell+=' '
+              fi
+              normal_shell+="${value}"
+            done
+            ;;
+          STOPSIGNAL | USER | VOLUME | WORKDIR) ;;
+          *) error "unknown instruction ${instruction_kind}" ;;
           esac
           arguments=''
           # only shell-form RUN/ENTRYPOINT/CMD is run in a shell
           case "${instruction_kind}" in
-            RUN)
-              if [[ "$(jq -r '.arguments.shell' <<<"${instruction}")" == 'null' ]]; then
+          RUN)
+            if [[ "$(jq -r '.arguments.shell' <<<"${instruction}")" == 'null' ]]; then
+              continue
+            fi
+            arguments=$(jq -r '.arguments.shell.value' <<<"${instruction}")
+            if [[ -z "${arguments}" ]]; then
+              if [[ "$(jq -r '.here_docs[0]' <<<"${instruction}")" == 'null' ]]; then
+                error "empty RUN is useless (${dockerfile_path})"
                 continue
               fi
-              arguments=$(jq -r '.arguments.shell.value' <<<"${instruction}")
-              if [[ -z "${arguments}" ]]; then
-                if [[ "$(jq -r '.here_docs[0]' <<<"${instruction}")" == 'null' ]]; then
-                  error "empty RUN is useless (${dockerfile_path})"
-                  continue
-                fi
-                if [[ "$(jq -r '.here_docs[1]' <<<"${instruction}")" != 'null' ]]; then
-                  # TODO:
-                  error "multi here-docs without command is not yet supported (${dockerfile_path})"
-                fi
-                arguments=$(jq -r '.here_docs[0].value' <<<"${instruction}")
-                if [[ "${arguments}" == '#!'* ]]; then
-                  # TODO:
-                  error "here-docs with shebang is not yet supported (${dockerfile_path})"
-                  continue
-                fi
-              else
-                if [[ "$(jq -r '.here_docs[0]' <<<"${instruction}")" != 'null' ]]; then
-                  # TODO:
-                  error "sh/bash command with here-docs is not yet checked (${dockerfile_path})"
-                fi
+              if [[ "$(jq -r '.here_docs[1]' <<<"${instruction}")" != 'null' ]]; then
+                # TODO:
+                error "multi here-docs without command is not yet supported (${dockerfile_path})"
               fi
-              ;;
-            ENTRYPOINT | CMD)
-              if [[ "$(jq -r '.arguments.shell' <<<"${instruction}")" == 'null' ]]; then
+              arguments=$(jq -r '.here_docs[0].value' <<<"${instruction}")
+              if [[ "${arguments}" == '#!'* ]]; then
+                # TODO:
+                error "here-docs with shebang is not yet supported (${dockerfile_path})"
                 continue
               fi
-              arguments=$(jq -r '.arguments.shell.value' <<<"${instruction}")
-              if [[ -z "${normal_shell}" ]] && [[ -n "${arguments}" ]]; then
-                # https://docs.docker.com/reference/build-checks/json-args-recommended/
-                error "JSON arguments recommended for ENTRYPOINT/CMD to prevent unintended behavior related to OS signals"
+            else
+              if [[ "$(jq -r '.here_docs[0]' <<<"${instruction}")" != 'null' ]]; then
+                # TODO:
+                error "sh/bash command with here-docs is not yet checked (${dockerfile_path})"
               fi
-              ;;
-            HEALTHCHECK)
-              if [[ "$(jq -r '.arguments.kind' <<<"${instruction}")" != "CMD" ]]; then
-                continue
-              fi
-              if [[ "$(jq -r '.arguments.arguments.shell' <<<"${instruction}")" == 'null' ]]; then
-                continue
-              fi
-              arguments=$(jq -r '.arguments.arguments.shell.value' <<<"${instruction}")
-              ;;
-            *) continue ;;
+            fi
+            ;;
+          ENTRYPOINT | CMD)
+            if [[ "$(jq -r '.arguments.shell' <<<"${instruction}")" == 'null' ]]; then
+              continue
+            fi
+            arguments=$(jq -r '.arguments.shell.value' <<<"${instruction}")
+            if [[ -z "${normal_shell}" ]] && [[ -n "${arguments}" ]]; then
+              # https://docs.docker.com/reference/build-checks/json-args-recommended/
+              error "JSON arguments recommended for ENTRYPOINT/CMD to prevent unintended behavior related to OS signals"
+            fi
+            ;;
+          HEALTHCHECK)
+            if [[ "$(jq -r '.arguments.kind' <<<"${instruction}")" != "CMD" ]]; then
+              continue
+            fi
+            if [[ "$(jq -r '.arguments.arguments.shell' <<<"${instruction}")" == 'null' ]]; then
+              continue
+            fi
+            arguments=$(jq -r '.arguments.arguments.shell.value' <<<"${instruction}")
+            ;;
+          *) continue ;;
           esac
           case "${normal_shell}" in
-            # not unix shell
-            cmd | cmd.exe | powershell | powershell.exe) continue ;;
-            # https://docs.docker.com/reference/dockerfile/#shell
-            '') shell='/bin/sh -c' ;;
-            *) shell="${normal_shell}" ;;
+          # not unix shell
+          cmd | cmd.exe | powershell | powershell.exe) continue ;;
+          # https://docs.docker.com/reference/dockerfile/#shell
+          '') shell='/bin/sh -c' ;;
+          *) shell="${normal_shell}" ;;
           esac
           shellcheck_for_dockerfile "${arguments}" "${shell}" "${dockerfile_path}"
         done
@@ -799,8 +799,8 @@ elif check_install shellcheck; then
           return
         fi
         case "${shell}" in
-          bash* | sh*) ;;
-          *) return ;;
+        bash* | sh*) ;;
+        *) return ;;
         esac
         text="#!/usr/bin/env ${shell%' {0}'}"$'\n'"${text}"
         # Use python because sed doesn't support .*?.
@@ -812,7 +812,7 @@ print(text)
 EOF
         )
         case "${ostype}" in
-          windows) text=${text//$'\r'/} ;; # Python print emits \r\n.
+        windows) text=${text//$'\r'/} ;; # Python print emits \r\n.
         esac
         local color=auto
         if [[ -t 1 ]] || [[ -n "${GITHUB_ACTIONS:-}" ]]; then
@@ -835,10 +835,10 @@ EOF
         # The top-level permissions must be weak as they are referenced by all jobs.
         permissions=$(jq -c '.permissions' <<<"${workflow}")
         case "${permissions}" in
-          # `permissions: {}` means "all none": https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#defining-access-for-the-github_token-scopes
-          '{"contents":"read"}' | '{}') ;;
-          null) error "${workflow_path}: top level permissions not found; it must be 'contents: read' or weaker permissions" ;;
-          *) error "${workflow_path}: only 'contents: read' and weaker permissions are allowed at top level, but found '${permissions}'; if you want to use stronger permissions, please set job-level permissions" ;;
+        # `permissions: {}` means "all none": https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#defining-access-for-the-github_token-scopes
+        '{"contents":"read"}' | '{}') ;;
+        null) error "${workflow_path}: top level permissions not found; it must be 'contents: read' or weaker permissions" ;;
+        *) error "${workflow_path}: only 'contents: read' and weaker permissions are allowed at top level, but found '${permissions}'; if you want to use stronger permissions, please set job-level permissions" ;;
         esac
         default_shell=$(jq -r -c '.defaults.run.shell' <<<"${workflow}")
         # github's default is https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#defaultsrunshell
@@ -933,13 +933,13 @@ if [[ -f tools/.tidy-check-license-headers ]]; then
   failed_files=''
   for p in $(LC_ALL=C comm -12 <(eval $(<tools/.tidy-check-license-headers) | LC_ALL=C sort) <(ls_files | LC_ALL=C sort)); do
     case "${p##*/}" in
-      *.stderr | *.expanded.rs) continue ;; # generated files
-      *.json) continue ;;                   # no comment support
-      *.sh | *.py | *.rb | *Dockerfile*) prefix=('# ') ;;
-      *.rs | *.c | *.h | *.cpp | *.hpp | *.s | *.S | *.js) prefix=('// ' '/* ') ;;
-      *.ld | *.x) prefix=('/* ') ;;
-      # TODO: More file types?
-      *) continue ;;
+    *.stderr | *.expanded.rs) continue ;; # generated files
+    *.json) continue ;;                   # no comment support
+    *.sh | *.py | *.rb | *Dockerfile*) prefix=('# ') ;;
+    *.rs | *.c | *.h | *.cpp | *.hpp | *.s | *.S | *.js) prefix=('// ' '/* ') ;;
+    *.ld | *.x) prefix=('/* ') ;;
+    # TODO: More file types?
+    *) continue ;;
     esac
     # TODO: The exact line number is not actually important; it is important
     # that it be part of the top-level comments of the file.
@@ -1042,9 +1042,9 @@ EOF
         continue
       fi
       case "${ostype}" in
-        # NetBSD uniq doesn't support -i flag.
-        netbsd) dup=$(sed -E 's/#.*//g; s/^[ \t]+//g; s/\/[ \t]+$//g; /^$/d' "${project_dictionary}" "${dictionary}" | LC_ALL=C sort -f | tr '[:upper:]' '[:lower:]' | LC_ALL=C uniq -d) ;;
-        *) dup=$(sed -E 's/#.*//g; s/^[ \t]+//g; s/\/[ \t]+$//g; /^$/d' "${project_dictionary}" "${dictionary}" | LC_ALL=C sort -f | LC_ALL=C uniq -d -i) ;;
+      # NetBSD uniq doesn't support -i flag.
+      netbsd) dup=$(sed -E 's/#.*//g; s/^[ \t]+//g; s/\/[ \t]+$//g; /^$/d' "${project_dictionary}" "${dictionary}" | LC_ALL=C sort -f | tr '[:upper:]' '[:lower:]' | LC_ALL=C uniq -d) ;;
+      *) dup=$(sed -E 's/#.*//g; s/^[ \t]+//g; s/\/[ \t]+$//g; /^$/d' "${project_dictionary}" "${dictionary}" | LC_ALL=C sort -f | LC_ALL=C uniq -d -i) ;;
       esac
       if [[ -n "${dup}" ]]; then
         error "duplicated words in dictionaries; please remove the following words from ${project_dictionary}"

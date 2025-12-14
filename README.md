@@ -1,14 +1,20 @@
 # PEP 257 Rust Docstring Checker
 
-A Rust tool that uses tree-sitter to parse Rust files and check that documentation comments (docstrings) follow PEP 257 conventions as much as possible within the context of Rust code.
+A Rust tool that uses tree-sitter to parse Rust files and check that
+documentation comments (docstrings) follow PEP 257 conventions as much as
+possible within the context of Rust code.
 
 ## Features
 
-- **Tree-sitter parsing**: Uses tree-sitter-rust for accurate AST-based parsing
-- **PEP 257 compliance**: Checks documentation comments against adapted PEP 257 rules
-- **Multiple comment styles**: Supports `///`, `/** */`, and `#[doc = "..."]` documentation styles
+- **Tree-sitter parsing**: Uses tree-sitter-rust for accurate AST-based
+  parsing
+- **PEP 257 compliance**: Checks documentation comments against adapted PEP 257
+  rules
+- **Multiple comment styles**: Supports `///`, `/** */`, and `#[doc = "..."]`
+  documentation styles
 - **Multiple output formats**: Text and JSON output formats
-- **Comprehensive coverage**: Checks functions, structs, enums, traits, impl blocks, modules, and constants
+- **Comprehensive coverage**: Checks functions, structs, enums, traits, impl
+  blocks, modules, and constants
 - **Command-line interface**: Easy-to-use CLI with various options
 
 ## Supported PEP 257 Rules
@@ -169,13 +175,16 @@ fn add_detailed(a: i32, b: i32) -> i32 {
 
 Based on PEP 257 adapted for Rust:
 
-1. **Write concise one-line summaries**: The first line should be a brief summary ending with a period.
+1. **Write concise one-line summaries**: The first line should be a brief
+   summary ending with a period.
 
-2. **Use imperative mood**: Start with verbs like "Calculate", "Create", "Return", not "Calculates" or "This function calculates".
+2. **Use imperative mood**: Start with verbs like "Calculate", "Create",
+   "Return", not "Calculates" or "This function calculates".
 
 3. **Proper capitalization**: Start the first word with a capital letter.
 
-4. **Separate summary from description**: Use a blank line between the summary and detailed description.
+4. **Separate summary from description**: Use a blank line between the
+   summary and detailed description.
 
 5. **Avoid signatures**: Don't repeat the function signature in the docstring.
 
@@ -246,8 +255,10 @@ cargo run --bin pep257 -- check-dir src --recursive
 
 ## Limitations
 
-- **Rust-specific adaptation**: Some PEP 257 rules don't directly apply to Rust, so they've been adapted
-- **Public vs. private**: Currently checks all items, not just public ones (this could be enhanced)
+- **Rust-specific adaptation**: Some PEP 257 rules don't directly apply to
+  Rust, so they've been adapted
+- **Public vs. private**: Currently checks all items, not just public ones
+  (this could be enhanced)
 - **Module-level docs**: Limited support for module-level documentation
 - **Macro documentation**: Does not check documentation for macros
 
@@ -265,6 +276,8 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Acknowledgments
 
-- Built on top of [tree-sitter](https://tree-sitter.github.io/) and [tree-sitter-rust](https://github.com/tree-sitter/tree-sitter-rust)
+- Built on top of [tree-sitter](https://tree-sitter.github.io/) and
+  [tree-sitter-rust](https://github.com/tree-sitter/tree-sitter-rust)
 - Inspired by Python's [pep257](https://pypi.org/project/pep257/) tool
-- Follows the [PEP 257](https://www.python.org/dev/peps/pep-0257/) docstring conventions where applicable
+- Follows the [PEP 257](https://www.python.org/dev/peps/pep-0257/) docstring
+  conventions where applicable
