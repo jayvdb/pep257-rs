@@ -1,8 +1,9 @@
-use crate::pep257::{Docstring, DocstringTarget};
-use std::fs;
-use std::path::Path;
+use std::{fs, path::Path};
+
 use streaming_iterator::StreamingIterator as _;
 use tree_sitter::{Language, Parser, Query, QueryCursor, Tree};
+
+use crate::pep257::{Docstring, DocstringTarget};
 
 /// Errors that can occur during parsing.
 #[derive(thiserror::Error, Debug)]

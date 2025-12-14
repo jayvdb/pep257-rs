@@ -1,6 +1,7 @@
+use std::fmt;
+
 use imperative::Mood;
 use regex::Regex;
-use std::fmt;
 
 /// Represents a PEP 257 violation.
 #[derive(Debug, Clone)]

@@ -1,5 +1,4 @@
-use std::path::PathBuf;
-use std::process;
+use std::{path::PathBuf, process};
 
 use clap::{Parser as ClapParser, Subcommand, ValueEnum};
 use clap_verbosity_flag::Verbosity;
@@ -11,8 +10,7 @@ mod parser;
 /// PEP 257 checker implementation.
 mod pep257;
 
-use crate::analyzer::RustDocAnalyzer;
-use crate::pep257::Severity;
+use crate::{analyzer::RustDocAnalyzer, pep257::Severity};
 
 /// Command-line interface configuration.
 #[derive(ClapParser, Debug)]

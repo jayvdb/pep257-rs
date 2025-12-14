@@ -1,7 +1,11 @@
-use crate::parser::{ParseError, RustParser};
-use crate::pep257::{Pep257Checker, Violation};
-use log::info;
 use std::path::Path;
+
+use log::info;
+
+use crate::{
+    parser::{ParseError, RustParser},
+    pep257::{Pep257Checker, Violation},
+};
 
 /// Main analyzer that combines parsing and checking.
 pub(crate) struct RustDocAnalyzer {
