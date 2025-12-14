@@ -836,7 +836,7 @@ EOF
         permissions=$(jq -c '.permissions' <<<"${workflow}")
         case "${permissions}" in
         # `permissions: {}` means "all none": https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#defining-access-for-the-github_token-scopes
-        '{"contents":"read"}' | '{}') ;;
+        '{"contents":"read"}' | '{"contents":"read","pull-requests":"write","repository-projects":"read"}' | '{}') ;;
         null) error "${workflow_path}: top level permissions not found; it must be 'contents: read' or weaker permissions" ;;
         *) error "${workflow_path}: only 'contents: read' and weaker permissions are allowed at top level, but found '${permissions}'; if you want to use stronger permissions, please set job-level permissions" ;;
         esac
