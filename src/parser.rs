@@ -70,7 +70,7 @@ impl RustParser {
             &self.language,
             r"
             (function_item
-              name: (identifier) @name
+                name: (identifier) @name
             ) @function
             ",
         )
@@ -105,7 +105,7 @@ impl RustParser {
             &self.language,
             r"
             (struct_item
-              name: (type_identifier) @name
+                name: (type_identifier) @name
             ) @struct
             ",
         )
@@ -140,7 +140,7 @@ impl RustParser {
             &self.language,
             r"
             (enum_item
-              name: (type_identifier) @name
+                name: (type_identifier) @name
             ) @enum
             ",
         )
@@ -175,7 +175,7 @@ impl RustParser {
             &self.language,
             r"
             (trait_item
-              name: (type_identifier) @name
+                name: (type_identifier) @name
             ) @trait
             ",
         )
@@ -238,7 +238,7 @@ impl RustParser {
             &self.language,
             r"
             (mod_item
-              name: (identifier) @name
+                name: (identifier) @name
             ) @module
             ",
         )
@@ -273,7 +273,7 @@ impl RustParser {
             &self.language,
             r"
             (const_item
-              name: (identifier) @name
+                name: (identifier) @name
             ) @const
             ",
         )

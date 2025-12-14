@@ -313,10 +313,12 @@ impl Pep257Checker {
             // Remove Markdown links to avoid false positives
             let without_md_links = Self::remove_markdown_links(first_line);
 
-            // Check if it looks like a function signature (has parentheses with possible parameters)
-            // and doesn't just contain parentheses for other reasons
+            // Check if it looks like a function signature (has parentheses with
+            // possible parameters) and doesn't just contain parentheses for
+            // other reasons
             if without_md_links.contains('(') && without_md_links.contains(')') {
-                // Additional heuristic: likely a signature if it has -> or starts with a likely function name pattern
+                // Additional heuristic: likely a signature if it has -> or
+                // starts with a likely function name pattern
                 let looks_like_signature = without_md_links.contains("->")
                     || without_md_links
                         .trim_start()
@@ -566,8 +568,12 @@ impl Pep257Checker {
                         violations.push(Violation {
                             rule: "D405".to_string(),
                             message: format!(
-                                "Markdown link text looks like code but lacks backticks: [{}] should be [`{}`]",
-                                link_text.trim(), link_text.trim()
+                                concat!(
+                                    "Markdown link text looks like code but lacks ",
+                                    "backticks: [{}] should be [`{}`]"
+                                ),
+                                link_text.trim(),
+                                link_text.trim()
                             ),
                             line: link_start_line,
                             column: link_start_col,
@@ -1258,7 +1264,8 @@ mod tests {
     fn test_violation_display_special_chars() {
         let violation = Violation {
             rule: "D405".to_string(),
-            message: "Markdown link text looks like code but lacks backticks: [SqlType::Custom] should be [`SqlType::Custom`]".to_string(),
+            message: "Markdown link text looks like code but lacks backticks: ".to_owned()
+                + "[SqlType::Custom] should be [`SqlType::Custom`]",
             line: 5,
             column: 20,
             severity: Severity::Warning,
@@ -1381,11 +1388,12 @@ mod tests {
     #[test]
     fn test_wrapped_summary_no_false_positives() {
         let docstring = Docstring {
-            content: "Summary line that continues on to the next line incorrectly\ndue to wrapping."
-                .to_string(),
-            raw_content:
-                "/// Summary line that continues on to the next line incorrectly\n/// due to wrapping."
+            content:
+                "Summary line that continues on to the next line incorrectly\ndue to wrapping."
                     .to_string(),
+            raw_content: ("/// Summary line that continues on to the next line ".to_owned()
+                + "incorrectly\n/// due to wrapping.")
+                .to_string(),
             line: 1,
             column: 1,
             is_multiline: true,
@@ -1404,8 +1412,11 @@ mod tests {
     #[test]
     fn test_missing_blank_line_triggers_d205() {
         let docstring = Docstring {
-            content: "Summary line that ends properly.\nThis is a description line immediately following the summary without a blank line.".to_string(),
-            raw_content: "/// Summary line that ends properly.\n/// This is a description line immediately following the summary without a blank line.".to_string(),
+            content: "Summary line that ends properly.\nThis is a description ".to_owned()
+                + "line immediately following the summary without a blank line.",
+            raw_content: "/// Summary line that ends properly.\n/// This is a ".to_owned()
+                + "description line immediately following the summary without a "
+                + "blank line.",
             line: 1,
             column: 1,
             is_multiline: true,

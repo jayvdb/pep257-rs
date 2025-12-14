@@ -1,19 +1,19 @@
 /// Calculate the sum of two numbers.
-/// 
+///
 /// This function takes two integers as parameters and returns their sum.
 /// It's a simple arithmetic operation that demonstrates proper documentation.
-/// 
+///
 /// # Arguments
-/// 
+///
 /// * `a` - The first number
 /// * `b` - The second number
-/// 
+///
 /// # Returns
-/// 
+///
 /// The sum of `a` and `b`
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```
 /// let result = add(5, 3);
 /// assert_eq!(result, 8);
@@ -23,13 +23,13 @@ fn add(a: i32, b: i32) -> i32 {
 }
 
 /// Represents a point in 2D space.
-/// 
+///
 /// This struct holds the coordinates of a point in a two-dimensional
 /// coordinate system.
 struct Point {
     /// The x-coordinate
     x: f64,
-    /// The y-coordinate  
+    /// The y-coordinate
     y: f64,
 }
 
@@ -39,7 +39,7 @@ impl Point {
     fn new() -> Self {
         Self { x: 0.0, y: 0.0 }
     }
-    
+
     /// Create a new point with the given coordinates.
     fn new_with_coords(x: f64, y: f64) -> Self {
         Self { x, y }

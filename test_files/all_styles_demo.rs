@@ -11,7 +11,7 @@ fn add_line_comment(a: i32, b: i32) -> i32 {
 
 /**
  * Calculate the difference using block comments.
- * 
+ *
  * This style is less common but still valid.
  */
 fn subtract_block_comment(a: i32, b: i32) -> i32 {
@@ -59,7 +59,7 @@ impl Calculator {
 
     /**
      * Get the current result.
-     * 
+     *
      * Returns the accumulated result of all operations.
      */
     fn get_result(&self) -> i32 {
