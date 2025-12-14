@@ -25,7 +25,7 @@ use_try_shorthand = true
 
 # Set the default settings again to always apply the proper formatting without
 # being affected by the editor settings.
-edition = "2021"
+edition = "2024"
 style_edition = "2024"
 hard_tabs = false
 newline_style = "Unix"
