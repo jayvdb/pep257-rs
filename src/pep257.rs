@@ -1392,9 +1392,8 @@ mod tests {
             content:
                 "Summary line that continues on to the next line incorrectly\ndue to wrapping."
                     .to_string(),
-            raw_content: ("/// Summary line that continues on to the next line ".to_owned()
-                + "incorrectly\n/// due to wrapping.")
-                .to_string(),
+            raw_content: "/// Summary line that continues on to the next line ".to_owned()
+                + "incorrectly\n/// due to wrapping.",
             line: 1,
             column: 1,
             is_multiline: true,
