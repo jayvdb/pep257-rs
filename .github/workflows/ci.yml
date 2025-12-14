@@ -2,8 +2,6 @@ name: CI
 
 permissions:
   contents: read
-  pull-requests: write
-  repository-projects: read
 
 on:
   pull_request:
@@ -12,7 +10,7 @@ on:
       - main
       - staging
   schedule:
-    - cron: '0 0 * * *'
+    - cron: "0 0 * * *"
   workflow_dispatch:
 
 env:
@@ -27,7 +25,7 @@ env:
 
 defaults:
   run:
-    shell: bash
+    shell: bash --noprofile --norc -CeEuo pipefail {0}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}

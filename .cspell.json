@@ -2,5 +2,13 @@
   "version": "0.2",
   "language": "en",
   "words": [],
-  "ignorePaths": []
+  "ignorePaths": [],
+  "dictionaries": ["project-dictionary"],
+  "dictionaryDefinitions": [
+    {
+      "name": "project-dictionary",
+      "path": ".github/.cspell/project-dictionary.txt",
+      "addWords": true
+    }
+  ]
 }

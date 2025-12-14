@@ -1,0 +1,2 @@
+# Project-specific dictionary
+# Add project-specific words here, one per line
