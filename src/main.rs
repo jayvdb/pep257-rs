@@ -1,6 +1,6 @@
 use std::{path::PathBuf, process};
 
-use clap::{CommandFactory, Parser as ClapParser, Subcommand, ValueEnum};
+use clap::{CommandFactory as _, Parser as ClapParser, Subcommand, ValueEnum};
 use clap_verbosity_flag::Verbosity;
 
 /// Analyzer module for Rust documentation.
@@ -85,8 +85,7 @@ fn run(cli: &Cli) -> Result<(), Box<dyn std::error::Error>> {
 
     match &cli.command {
         Some(Commands::Check { path }) => {
-            let target_path =
-                path.as_ref().map(|p| p.clone()).unwrap_or_else(|| PathBuf::from("."));
+            let target_path = path.clone().unwrap_or_else(|| PathBuf::from("."));
 
             if target_path.is_file() {
                 total_violations += check_file(&mut analyzer, &target_path, cli)?;
