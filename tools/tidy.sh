@@ -917,10 +917,19 @@ if [[ ${#zizmor_targets[@]} -gt 0 ]]; then
   if [[ "${ostype}" =~ ^(netbsd|openbsd|dragonfly|illumos|solaris)$ ]] && [[ -n "${CI:-}" ]] && ! type -P zizmor >/dev/null; then
     warn "this check is skipped on NetBSD/OpenBSD/Dragonfly/illumos/Solaris due to installing zizmor is hard on these platform"
   elif check_install zizmor; then
+    # Get GitHub token for online audits
+    if [[ -z "${GITHUB_TOKEN:-}" ]]; then
+      if type -P gh >/dev/null; then
+        GITHUB_TOKEN=$(gh auth token 2>/dev/null || true)
+      fi
+      if [[ -z "${GITHUB_TOKEN:-}" ]]; then
+        error "GITHUB_TOKEN is required for zizmor online audits. Set GITHUB_TOKEN or run: gh auth login"
+      fi
+    fi
     IFS=' '
     info "running \`zizmor -q ${zizmor_targets[*]}\`"
     IFS=$'\n\t'
-    zizmor -q "${zizmor_targets[@]}"
+    zizmor -q --gh-token "${GITHUB_TOKEN}" "${zizmor_targets[@]}"
   fi
 fi
 printf '\n'
