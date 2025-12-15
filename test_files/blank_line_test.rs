@@ -5,7 +5,6 @@
 pub fn function_with_leading_blank() {}
 
 /// This function has a blank line after the docstring.
-///
 pub fn function_with_trailing_blank() {}
 
 ///
@@ -15,7 +14,6 @@ pub struct StructWithLeadingBlank {
 }
 
 /// This struct has a blank line after the docstring.
-///
 pub struct StructWithTrailingBlank {
     y: i32,
 }
@@ -28,7 +26,6 @@ pub enum EnumWithLeadingBlank {
 }
 
 /// This enum has a blank line after the docstring.
-///
 pub enum EnumWithTrailingBlank {
     Variant1,
     Variant2,
@@ -41,7 +38,6 @@ pub trait TraitWithLeadingBlank {
 }
 
 /// This trait has a blank line after the docstring.
-///
 pub trait TraitWithTrailingBlank {
     fn method(&self);
 }
@@ -51,7 +47,6 @@ pub trait TraitWithTrailingBlank {
 pub const CONST_WITH_LEADING_BLANK: i32 = 42;
 
 /// This const has a blank line after the docstring.
-///
 pub const CONST_WITH_TRAILING_BLANK: i32 = 42;
 
 /// This is properly formatted without blank lines.
