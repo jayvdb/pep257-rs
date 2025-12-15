@@ -6,24 +6,39 @@ This document contains the help content for the `pep257` command-line program.
 
 * [`pep257`↴](#pep257)
 * [`pep257 check`↴](#pep257-check)
-* [`pep257 check-dir`↴](#pep257-check-dir)
 
 ## `pep257`
 
-A tool to check Rust docstrings against PEP 257 conventions
+A tool to check Rust docstrings against PEP 257 conventions.
+
+Supports multiple comment styles: ///, /** */, and #[doc = "..."].
+
+Examples:
+  # Check current directory
+  pep257 check
+
+  # Check a specific file
+  pep257 check src/main.rs
+
+  # Check a directory recursively
+  pep257 check src/
+
+  # Show warnings in addition to errors
+  pep257 check --warnings
+
+  # Output in JSON format
+  pep257 check --format json
 
 **Usage:** `pep257 [OPTIONS] [COMMAND]`
 
 ###### **Subcommands:**
 
-* `check` — Check a single file
-* `check-dir` — Check all Rust files in a directory
+* `check` — Check a file or directory (defaults to current directory)
 
 ###### **Options:**
 
 * `-v`, `--verbose` — Increase logging verbosity
 * `-q`, `--quiet` — Decrease logging verbosity
-* `-f`, `--file <FILE>` — Input file to check
 * `-w`, `--warnings` — Show warnings in addition to errors
 * `--format <FORMAT>` — Output format
 
@@ -37,29 +52,13 @@ A tool to check Rust docstrings against PEP 257 conventions
 
 ## `pep257 check`
 
-Check a single file
+Check a file or directory (defaults to current directory)
 
-**Usage:** `pep257 check <FILE>`
-
-###### **Arguments:**
-
-* `<FILE>` — File to check
-
-
-
-## `pep257 check-dir`
-
-Check all Rust files in a directory
-
-**Usage:** `pep257 check-dir [OPTIONS] <DIR>`
+**Usage:** `pep257 check [PATH]`
 
 ###### **Arguments:**
 
-* `<DIR>` — Directory to check
-
-###### **Options:**
-
-* `-r`, `--recursive` — Check files recursively
+* `<PATH>` — Path to check (file or directory, defaults to current directory)
 
 
 
