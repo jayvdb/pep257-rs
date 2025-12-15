@@ -1,0 +1,4 @@
+# https://github.com/koalaman/shellcheck/blob/master/shellcheck.1.md
+
+# SC2250: Prefer putting braces around variable references even when not strictly required.
+disable=SC2250

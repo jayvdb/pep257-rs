@@ -1,4 +1,2 @@
 [files]
-extend-exclude = [
-    "target/",
-]
+extend-exclude = ["target/"]

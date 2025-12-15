@@ -4,11 +4,11 @@
 [licenses]
 # Allow these licenses
 allow = [
-    "MIT",
-    "Apache-2.0",
-    "BSL-1.0",      # Boost Software License
-    "Unicode-3.0",  # Unicode License
-    "Unlicense",
+  "MIT",
+  "Apache-2.0",
+  "BSL-1.0",     # Boost Software License
+  "Unicode-3.0", # Unicode License
+  "Unlicense",
 ]
 
 # Confidence threshold for license detection

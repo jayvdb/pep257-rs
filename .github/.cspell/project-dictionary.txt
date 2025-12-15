@@ -1,0 +1,36 @@
+# Project-specific dictionary
+# Add project-specific words here, one per line
+Backticked
+bytecount
+cfgs
+Clippy
+ctypes
+docstrings
+HEALTHCHECK
+idents
+illumos
+Makefiles
+msrv
+MSYS
+nonminimal
+noprofile
+norc
+pascalcase
+peekable
+pipefail
+pipx
+repr
+rustc
+rustdoc
+RUSTDOCFLAGS
+RUSTFLAGS
+RUSTUP
+shfmt
+STOPSIGNAL
+subtables
+taiki
+taplo
+tomlq
+turbofish
+Vandenberg
+zizmor

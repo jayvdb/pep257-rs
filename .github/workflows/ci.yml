@@ -1,0 +1,44 @@
+name: CI
+
+permissions:
+  contents: read
+  pull-requests: write
+  repository-projects: read
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - staging
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+env:
+  CARGO_INCREMENTAL: 0
+  CARGO_NET_GIT_FETCH_WITH_CLI: true
+  CARGO_NET_RETRY: 10
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  RUSTDOCFLAGS: -D warnings
+  RUSTFLAGS: -D warnings
+  RUSTUP_MAX_RETRIES: 10
+
+defaults:
+  run:
+    shell: bash --noprofile --norc -CeEuo pipefail {0}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    uses: taiki-e/github-actions/.github/workflows/test.yml@main
+    with:
+      direct-minimal-versions: false
+      minimal-versions: false
+      no-std: false
+  tidy:
+    uses: taiki-e/github-actions/.github/workflows/tidy.yml@main

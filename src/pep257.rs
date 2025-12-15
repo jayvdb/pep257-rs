@@ -1,10 +1,11 @@
+use std::fmt;
+
 use imperative::Mood;
 use regex::Regex;
-use std::fmt;
 
 /// Represents a PEP 257 violation.
 #[derive(Debug, Clone)]
-pub struct Violation {
+pub(crate) struct Violation {
     pub rule: String,
     pub message: String,
     pub line: usize,
@@ -14,7 +15,7 @@ pub struct Violation {
 
 /// Severity level for violations.
 #[derive(Debug, Clone)]
-pub enum Severity {
+pub(crate) enum Severity {
     Error,
     Warning,
 }
@@ -40,7 +41,7 @@ impl fmt::Display for Violation {
 
 /// Represents a docstring found in the code.
 #[derive(Debug, Clone)]
-pub struct Docstring {
+pub(crate) struct Docstring {
     pub content: String,
     #[allow(dead_code)]
     pub raw_content: String,
@@ -52,8 +53,8 @@ pub struct Docstring {
 }
 
 /// Type of construct that has a docstring.
-#[derive(Debug, Clone, PartialEq)]
-pub enum DocstringTarget {
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) enum DocstringTarget {
     Function,
     Struct,
     Enum,
@@ -79,12 +80,12 @@ impl fmt::Display for DocstringTarget {
             DocstringTarget::Const => "const",
             DocstringTarget::Static => "static",
         };
-        write!(f, "{}", name)
+        write!(f, "{name}")
     }
 }
 
 /// PEP 257 checker implementation.
-pub struct Pep257Checker {
+pub(crate) struct Pep257Checker {
     #[allow(dead_code)]
     whitespace_regex: Regex,
     #[allow(dead_code)]
@@ -102,7 +103,7 @@ impl Default for Pep257Checker {
 /// Implementation of checker methods.
 impl Pep257Checker {
     /// Create a new checker instance.
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             whitespace_regex: Regex::new(r"\s+").unwrap(),
             leading_space_regex: Regex::new(r"^\s*").unwrap(),
@@ -110,7 +111,7 @@ impl Pep257Checker {
     }
 
     /// Check a docstring against PEP 257 rules.
-    pub fn check_docstring(&self, docstring: &Docstring) -> Vec<Violation> {
+    pub(crate) fn check_docstring(docstring: &Docstring) -> Vec<Violation> {
         let mut violations = Vec::new();
 
         // Skip empty docstrings
@@ -126,16 +127,16 @@ impl Pep257Checker {
         }
 
         // Check for proper docstring format
-        violations.extend(self.check_d200_series(docstring));
-        violations.extend(self.check_d300_series(docstring));
-        violations.extend(self.check_d400_series(docstring));
-        violations.extend(self.check_common_rust_types(docstring));
+        violations.extend(Self::check_d200_series(docstring));
+        violations.extend(Self::check_d300_series(docstring));
+        violations.extend(Self::check_d400_series(docstring));
+        violations.extend(Self::check_common_rust_types(docstring));
 
         violations
     }
 
     /// Check D200 series: One-line docstring whitespace issues.
-    fn check_d200_series(&self, docstring: &Docstring) -> Vec<Violation> {
+    fn check_d200_series(docstring: &Docstring) -> Vec<Violation> {
         let mut violations = Vec::new();
         let content = &docstring.content;
         let lines: Vec<&str> = content.lines().collect();
@@ -198,25 +199,21 @@ impl Pep257Checker {
             // description (should be flagged). Heuristic: if the FIRST non-empty line ends with
             // terminal punctuation (., !, ?) and there is a subsequent non-empty line, then
             // treat that subsequent line as a description that must be separated by a blank line.
-            let non_empty_lines: Vec<&str> = lines
-                .iter()
-                .filter(|l| !l.trim().is_empty())
-                .cloned()
-                .collect();
-            if non_empty_lines.len() > 1 {
-                if let Some(first) = non_empty_lines.first().map(|l| l.trim()) {
-                    if first.ends_with('.') || first.ends_with('!') || first.ends_with('?') {
-                        // Missing blank line between summary and description
-                        violations.push(Violation {
-                            rule: "D205".to_string(),
-                            message: "1 blank line required between summary line and description"
-                                .to_string(),
-                            line: docstring.line + 1,
-                            column: docstring.column,
-                            severity: Severity::Error,
-                        });
-                    }
-                }
+            let non_empty_lines: Vec<&str> =
+                lines.iter().filter(|l| !l.trim().is_empty()).copied().collect();
+            if non_empty_lines.len() > 1
+                && let Some(first) = non_empty_lines.first().map(|l| l.trim())
+                && (first.ends_with('.') || first.ends_with('!') || first.ends_with('?'))
+            {
+                // Missing blank line between summary and description
+                violations.push(Violation {
+                    rule: "D205".to_string(),
+                    message: "1 blank line required between summary line and description"
+                        .to_string(),
+                    line: docstring.line + 1,
+                    column: docstring.column,
+                    severity: Severity::Error,
+                });
             }
         }
 
@@ -224,7 +221,7 @@ impl Pep257Checker {
     }
 
     /// Check D300 series: Triple double quotes and closing quotes position.
-    fn check_d300_series(&self, docstring: &Docstring) -> Vec<Violation> {
+    fn check_d300_series(docstring: &Docstring) -> Vec<Violation> {
         let mut violations = Vec::new();
         let lines: Vec<&str> = docstring.content.lines().collect();
 
@@ -270,7 +267,7 @@ impl Pep257Checker {
     }
 
     /// Check D400 series: First line should be a summary.
-    fn check_d400_series(&self, docstring: &Docstring) -> Vec<Violation> {
+    fn check_d400_series(docstring: &Docstring) -> Vec<Violation> {
         let mut violations = Vec::new();
         let lines: Vec<&str> = docstring.content.lines().collect();
 
@@ -301,7 +298,7 @@ impl Pep257Checker {
         }
 
         // D401: First line should be in imperative mood
-        if !first_line.is_empty() && self.is_not_imperative(first_line) {
+        if !first_line.is_empty() && Self::is_not_imperative(first_line) {
             violations.push(Violation {
                 rule: "D401".to_string(),
                 message: "First line should be in imperative mood".to_string(),
@@ -315,19 +312,20 @@ impl Pep257Checker {
         // Only check functions, and avoid false positives from Markdown links [text](url)
         if docstring.target_type == DocstringTarget::Function {
             // Remove Markdown links to avoid false positives
-            let without_md_links = self.remove_markdown_links(first_line);
+            let without_md_links = Self::remove_markdown_links(first_line);
 
-            // Check if it looks like a function signature (has parentheses with possible parameters)
-            // and doesn't just contain parentheses for other reasons
+            // Check if it looks like a function signature (has parentheses with
+            // possible parameters) and doesn't just contain parentheses for
+            // other reasons
             if without_md_links.contains('(') && without_md_links.contains(')') {
-                // Additional heuristic: likely a signature if it has -> or starts with a likely function name pattern
+                // Additional heuristic: likely a signature if it has -> or
+                // starts with a likely function name pattern
                 let looks_like_signature = without_md_links.contains("->")
                     || without_md_links
                         .trim_start()
                         .chars()
                         .next()
-                        .map(|c| c.is_lowercase() || c == '_')
-                        .unwrap_or(false);
+                        .is_some_and(|c| c.is_lowercase() || c == '_');
 
                 if looks_like_signature {
                     violations.push(Violation {
@@ -355,13 +353,13 @@ impl Pep257Checker {
         }
 
         // D405: Markdown links with code references should have backticks inside brackets
-        violations.extend(self.check_markdown_link_backticks(docstring));
+        violations.extend(Self::check_markdown_link_backticks(docstring));
 
         violations
     }
 
     /// Determine if a line is not in imperative mood using the imperative crate.
-    fn is_not_imperative(&self, line: &str) -> bool {
+    fn is_not_imperative(line: &str) -> bool {
         let words: Vec<&str> = line.split_whitespace().collect();
         if words.is_empty() {
             return false;
@@ -378,9 +376,8 @@ impl Pep257Checker {
                 // Fallback for words not recognized by the checker
                 // Check for common non-imperative patterns
                 let first_word_lower = first_word.to_lowercase();
-                let non_imperative_starts = [
-                    "this", "the", "a", "an", "returns", "gets", "creates", "makes", "builds",
-                ];
+                let non_imperative_starts =
+                    ["this", "the", "a", "an", "returns", "gets", "creates", "makes", "builds"];
                 non_imperative_starts.contains(&first_word_lower.as_str())
             }
         }
@@ -388,7 +385,7 @@ impl Pep257Checker {
 
     /// Remove Markdown links from a string to avoid false positives in checks.
     /// Converts "[text](url)" to "text"
-    fn remove_markdown_links(&self, text: &str) -> String {
+    fn remove_markdown_links(text: &str) -> String {
         let mut result = String::new();
         let mut chars = text.chars().peekable();
 
@@ -436,7 +433,7 @@ impl Pep257Checker {
     /// Check for markdown links that should have backticks inside square brackets.
     /// For example, [SqlType::Custom] should be [`SqlType::Custom`].
     /// This includes both markdown links [text](url) and standalone references [text].
-    fn check_markdown_link_backticks(&self, docstring: &Docstring) -> Vec<Violation> {
+    fn check_markdown_link_backticks(docstring: &Docstring) -> Vec<Violation> {
         let mut violations = Vec::new();
         let content = &docstring.content;
 
@@ -451,9 +448,8 @@ impl Pep257Checker {
                 line_num += 1;
                 col_num = docstring.column;
                 continue;
-            } else {
-                col_num += 1;
             }
+            col_num += 1;
 
             // Track when we're inside inline code (backticks)
             if ch == '`' {
@@ -470,7 +466,7 @@ impl Pep257Checker {
                 // Collect text until ]
                 let mut link_text = String::new();
                 let mut found_bracket = false;
-                let _link_start_pos = pos;
+                let _ = pos;
                 let link_start_line = line_num;
                 let link_start_col = col_num;
 
@@ -554,28 +550,31 @@ impl Pep257Checker {
                         } else if !ch.is_whitespace() {
                             // Not followed by URL or label, but still check standalone [text]
                             break;
-                        } else {
-                            if *ch == '\n' {
-                                line_num += 1;
-                                col_num = docstring.column;
-                            } else {
-                                col_num += 1;
-                            }
-                            chars.next();
                         }
+                        if *ch == '\n' {
+                            line_num += 1;
+                            col_num = docstring.column;
+                        } else {
+                            col_num += 1;
+                        }
+                        chars.next();
                     }
 
                     // Skip checking reference labels in reference-style links [text][label]
                     // Only check the display text, not the label
                     if !is_reference_label
-                        && self.looks_like_code(&link_text)
-                        && !self.has_backticks(&link_text)
+                        && Self::looks_like_code(&link_text)
+                        && !Self::has_backticks(&link_text)
                     {
                         violations.push(Violation {
                             rule: "D405".to_string(),
                             message: format!(
-                                "Markdown link text looks like code but lacks backticks: [{}] should be [`{}`]",
-                                link_text.trim(), link_text.trim()
+                                concat!(
+                                    "Markdown link text looks like code but lacks ",
+                                    "backticks: [{}] should be [`{}`]"
+                                ),
+                                link_text.trim(),
+                                link_text.trim()
                             ),
                             line: link_start_line,
                             column: link_start_col,
@@ -590,7 +589,7 @@ impl Pep257Checker {
     }
 
     /// Check if text looks like code (contains :: or PascalCase identifiers).
-    fn looks_like_code(&self, text: &str) -> bool {
+    fn looks_like_code(text: &str) -> bool {
         let trimmed = text.trim();
 
         // Check for Rust path separator
@@ -599,14 +598,14 @@ impl Pep257Checker {
         }
 
         // Check for PascalCase (starts with uppercase, has lowercase)
-        if let Some(first_char) = trimmed.chars().next() {
-            if first_char.is_uppercase() {
-                // Check if it has a mix of upper and lowercase (PascalCase pattern)
-                let has_lower = trimmed.chars().any(|c| c.is_lowercase());
-                let has_upper_after_first = trimmed.chars().skip(1).any(|c| c.is_uppercase());
-                if has_lower && has_upper_after_first {
-                    return true;
-                }
+        if let Some(first_char) = trimmed.chars().next()
+            && first_char.is_uppercase()
+        {
+            // Check if it has a mix of upper and lowercase (PascalCase pattern)
+            let has_lower = trimmed.chars().any(char::is_lowercase);
+            let has_upper_after_first = trimmed.chars().skip(1).any(char::is_uppercase);
+            if has_lower && has_upper_after_first {
+                return true;
             }
         }
 
@@ -614,20 +613,19 @@ impl Pep257Checker {
     }
 
     /// Check if text already has backticks.
-    fn has_backticks(&self, text: &str) -> bool {
+    fn has_backticks(text: &str) -> bool {
         text.contains('`')
     }
 
     /// Check for common Rust types that should use backticks instead of markdown links.
     /// D406: Common types like [Option] and [Result] should be `Option` and `Result`.
-    fn check_common_rust_types(&self, docstring: &Docstring) -> Vec<Violation> {
+    fn check_common_rust_types(docstring: &Docstring) -> Vec<Violation> {
         let mut violations = Vec::new();
         let content = &docstring.content;
 
         // List of common Rust types that should use inline code instead of markdown links
-        let common_types = [
-            "Option", "Result", "Vec", "Box", "Rc", "Arc", "Some", "None", "Ok", "Err",
-        ];
+        let common_types =
+            ["Option", "Result", "Vec", "Box", "Rc", "Arc", "Some", "None", "Ok", "Err"];
 
         // Look for [Type] or [Type](url) patterns
         let mut chars = content.chars().enumerate().peekable();
@@ -640,9 +638,8 @@ impl Pep257Checker {
                 line_num += 1;
                 col_num = docstring.column;
                 continue;
-            } else {
-                col_num += 1;
             }
+            col_num += 1;
 
             // Track when we're inside inline code (backticks)
             if ch == '`' {
@@ -684,7 +681,7 @@ impl Pep257Checker {
                     let trimmed_text = link_text.trim();
 
                     // Skip if already has backticks
-                    if self.has_backticks(trimmed_text) {
+                    if Self::has_backticks(trimmed_text) {
                         continue;
                     }
 
@@ -745,15 +742,14 @@ impl Pep257Checker {
                                 break;
                             } else if !ch.is_whitespace() {
                                 break;
-                            } else {
-                                if *ch == '\n' {
-                                    line_num += 1;
-                                    col_num = docstring.column;
-                                } else {
-                                    col_num += 1;
-                                }
-                                chars.next();
                             }
+                            if *ch == '\n' {
+                                line_num += 1;
+                                col_num = docstring.column;
+                            } else {
+                                col_num += 1;
+                            }
+                            chars.next();
                         }
 
                         violations.push(Violation {
@@ -785,10 +781,9 @@ mod tests {
     /// Test empty docstring detection.
     #[test]
     fn test_empty_docstring() {
-        let checker = Pep257Checker::new();
         let docstring = Docstring {
-            content: "".to_string(),
-            raw_content: "".to_string(),
+            content: String::new(),
+            raw_content: String::new(),
             line: 1,
             column: 1,
             is_multiline: false,
@@ -797,7 +792,7 @@ mod tests {
             target_type: DocstringTarget::Function,
         };
 
-        let violations = checker.check_docstring(&docstring);
+        let violations = Pep257Checker::check_docstring(&docstring);
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].rule, "D100");
     }
@@ -805,10 +800,9 @@ mod tests {
     /// Test that empty docstring for a private function does NOT trigger D100
     #[test]
     fn test_empty_docstring_private_no_d100() {
-        let checker = Pep257Checker::new();
         let docstring = Docstring {
-            content: "".to_string(),
-            raw_content: "".to_string(),
+            content: String::new(),
+            raw_content: String::new(),
             line: 1,
             column: 1,
             is_multiline: false,
@@ -816,7 +810,7 @@ mod tests {
             target_type: DocstringTarget::Function,
         };
 
-        let violations = checker.check_docstring(&docstring);
+        let violations = Pep257Checker::check_docstring(&docstring);
         // Private functions should not trigger D100 for missing docstrings
         assert!(!violations.iter().any(|v| v.rule == "D100"));
     }
@@ -824,7 +818,6 @@ mod tests {
     /// Test a properly formatted docstring.
     #[test]
     fn test_good_docstring() {
-        let checker = Pep257Checker::new();
         let docstring = Docstring {
             content: "Calculate the sum of two numbers.".to_string(),
             raw_content: "/// Calculate the sum of two numbers.".to_string(),
@@ -835,14 +828,13 @@ mod tests {
             target_type: DocstringTarget::Function,
         };
 
-        let violations = checker.check_docstring(&docstring);
+        let violations = Pep257Checker::check_docstring(&docstring);
         assert!(violations.is_empty());
     }
 
     /// Test missing period detection.
     #[test]
     fn test_missing_period() {
-        let checker = Pep257Checker::new();
         let docstring = Docstring {
             content: "Calculate the sum of two numbers".to_string(),
             raw_content: "/// Calculate the sum of two numbers".to_string(),
@@ -853,14 +845,13 @@ mod tests {
             target_type: DocstringTarget::Function,
         };
 
-        let violations = checker.check_docstring(&docstring);
+        let violations = Pep257Checker::check_docstring(&docstring);
         assert!(violations.iter().any(|v| v.rule == "D400"));
     }
 
     /// D401: "Create" should be considered imperative mood
     #[test]
     fn test_d401_create_is_imperative() {
-        let checker = Pep257Checker::new();
         let docstring = Docstring {
             content: "Create a migration.".to_string(),
             raw_content: "/// Create a migration.".to_string(),
@@ -871,7 +862,7 @@ mod tests {
             target_type: DocstringTarget::Function,
         };
 
-        let violations = checker.check_docstring(&docstring);
+        let violations = Pep257Checker::check_docstring(&docstring);
         // Should NOT trigger D401 because "Create" is imperative
         assert!(!violations.iter().any(|v| v.rule == "D401"));
     }
@@ -879,7 +870,6 @@ mod tests {
     /// D401: "Creates" should be non-imperative
     #[test]
     fn test_d401_creates_is_not_imperative() {
-        let checker = Pep257Checker::new();
         let docstring = Docstring {
             content: "Creates a migration.".to_string(),
             raw_content: "/// Creates a migration.".to_string(),
@@ -890,7 +880,7 @@ mod tests {
             target_type: DocstringTarget::Function,
         };
 
-        let violations = checker.check_docstring(&docstring);
+        let violations = Pep257Checker::check_docstring(&docstring);
         // Should trigger D401 because "Creates" is third person, not imperative
         assert!(violations.iter().any(|v| v.rule == "D401"));
     }
@@ -898,7 +888,6 @@ mod tests {
     /// D401: Common imperative verbs should pass
     #[test]
     fn test_d401_common_imperatives() {
-        let checker = Pep257Checker::new();
         let imperatives = vec![
             "Return the value.",
             "Calculate the sum.",
@@ -911,43 +900,37 @@ mod tests {
         for content in imperatives {
             let docstring = Docstring {
                 content: content.to_string(),
-                raw_content: format!("/// {}", content),
+                raw_content: format!("/// {content}"),
                 line: 1,
                 column: 1,
                 is_multiline: false,
                 is_public: false,
                 target_type: DocstringTarget::Function,
             };
-            let violations = checker.check_docstring(&docstring);
-            assert!(
-                !violations.iter().any(|v| v.rule == "D401"),
-                "Failed for: {}",
-                content
-            );
+            let violations = Pep257Checker::check_docstring(&docstring);
+            assert!(!violations.iter().any(|v| v.rule == "D401"), "Failed for: {content}");
         }
     }
 
     /// Test remove_markdown_links helper
     #[test]
     fn test_remove_markdown_links() {
-        let checker = Pep257Checker::new();
         let input = "For use with [SqlType::Custom](crate::SqlType).";
         let expected = "For use with SqlType::Custom.";
-        let output = checker.remove_markdown_links(input);
+        let output = Pep257Checker::remove_markdown_links(input);
         assert_eq!(output, expected);
 
         let input2 = "No links here.";
-        assert_eq!(checker.remove_markdown_links(input2), input2);
+        assert_eq!(Pep257Checker::remove_markdown_links(input2), input2);
 
         let input3 = "Multiple [A](x) and [B](y) links.";
         let expected3 = "Multiple A and B links.";
-        assert_eq!(checker.remove_markdown_links(input3), expected3);
+        assert_eq!(Pep257Checker::remove_markdown_links(input3), expected3);
     }
 
     /// D402: Should NOT trigger on markdown link docstring
     #[test]
     fn test_d402_no_false_positive_markdown_link() {
-        let checker = Pep257Checker::new();
         let docstring = Docstring {
             content: "For use with [SqlType::Custom](crate::SqlType).".to_string(),
             raw_content: "/// For use with [SqlType::Custom](crate::SqlType).".to_string(),
@@ -957,14 +940,13 @@ mod tests {
             is_public: false,
             target_type: DocstringTarget::Function,
         };
-        let violations = checker.check_docstring(&docstring);
+        let violations = Pep257Checker::check_docstring(&docstring);
         assert!(!violations.iter().any(|v| v.rule == "D402"));
     }
 
     /// D402: Should trigger on actual function signature
     #[test]
     fn test_d402_true_positive_signature() {
-        let checker = Pep257Checker::new();
         let docstring = Docstring {
             content: "my_func(x: i32, y: i32) -> i32".to_string(),
             raw_content: "/// my_func(x: i32, y: i32) -> i32".to_string(),
@@ -974,14 +956,13 @@ mod tests {
             is_public: false,
             target_type: DocstringTarget::Function,
         };
-        let violations = checker.check_docstring(&docstring);
+        let violations = Pep257Checker::check_docstring(&docstring);
         assert!(violations.iter().any(|v| v.rule == "D402"));
     }
 
     /// D405: Markdown link with code reference should have backticks
     #[test]
     fn test_d405_markdown_link_without_backticks() {
-        let checker = Pep257Checker::new();
         let docstring = Docstring {
             content: "For use with [SqlType::Custom](crate::SqlType).".to_string(),
             raw_content: "/// For use with [SqlType::Custom](crate::SqlType).".to_string(),
@@ -991,7 +972,7 @@ mod tests {
             is_public: false,
             target_type: DocstringTarget::Function,
         };
-        let violations = checker.check_docstring(&docstring);
+        let violations = Pep257Checker::check_docstring(&docstring);
         assert!(violations.iter().any(|v| v.rule == "D405"));
         let d405_violation = violations.iter().find(|v| v.rule == "D405").unwrap();
         assert!(d405_violation.message.contains("SqlType::Custom"));
@@ -1000,7 +981,6 @@ mod tests {
     /// D405: Markdown link with backticks should not trigger
     #[test]
     fn test_d405_markdown_link_with_backticks() {
-        let checker = Pep257Checker::new();
         let docstring = Docstring {
             content: "For use with [`SqlType::Custom`](crate::SqlType).".to_string(),
             raw_content: "/// For use with [`SqlType::Custom`](crate::SqlType).".to_string(),
@@ -1010,14 +990,13 @@ mod tests {
             is_public: false,
             target_type: DocstringTarget::Function,
         };
-        let violations = checker.check_docstring(&docstring);
+        let violations = Pep257Checker::check_docstring(&docstring);
         assert!(!violations.iter().any(|v| v.rule == "D405"));
     }
 
     /// D405: Markdown link with plain text should not trigger
     #[test]
     fn test_d405_markdown_link_plain_text() {
-        let checker = Pep257Checker::new();
         let docstring = Docstring {
             content: "See the [documentation](https://example.com) for details.".to_string(),
             raw_content: "/// See the [documentation](https://example.com) for details."
@@ -1028,14 +1007,13 @@ mod tests {
             is_public: false,
             target_type: DocstringTarget::Function,
         };
-        let violations = checker.check_docstring(&docstring);
+        let violations = Pep257Checker::check_docstring(&docstring);
         assert!(!violations.iter().any(|v| v.rule == "D405"));
     }
 
     /// D405: Markdown link with PascalCase should trigger
     #[test]
     fn test_d405_markdown_link_pascalcase() {
-        let checker = Pep257Checker::new();
         let docstring = Docstring {
             content: "Returns a [MyType](crate::MyType) instance.".to_string(),
             raw_content: "/// Returns a [MyType](crate::MyType) instance.".to_string(),
@@ -1045,14 +1023,13 @@ mod tests {
             is_public: false,
             target_type: DocstringTarget::Function,
         };
-        let violations = checker.check_docstring(&docstring);
+        let violations = Pep257Checker::check_docstring(&docstring);
         assert!(violations.iter().any(|v| v.rule == "D405"));
     }
 
     /// D405: Standalone bracket reference without URL should trigger
     #[test]
     fn test_d405_standalone_bracket_reference() {
-        let checker = Pep257Checker::new();
         let docstring = Docstring {
             content: "Wrapper around a [PrimaryKeyType] to indicate the primary key.".to_string(),
             raw_content: "/// Wrapper around a [PrimaryKeyType] to indicate the primary key."
@@ -1063,7 +1040,7 @@ mod tests {
             is_public: false,
             target_type: DocstringTarget::Function,
         };
-        let violations = checker.check_docstring(&docstring);
+        let violations = Pep257Checker::check_docstring(&docstring);
         assert!(violations.iter().any(|v| v.rule == "D405"));
         let d405_violation = violations.iter().find(|v| v.rule == "D405").unwrap();
         assert!(d405_violation.message.contains("PrimaryKeyType"));
@@ -1072,7 +1049,6 @@ mod tests {
     /// D405: Standalone backticked link should NOT trigger
     #[test]
     fn test_d405_standalone_backticked_link() {
-        let checker = Pep257Checker::new();
         let docstring = Docstring {
             content: "Where [`Self`] is a [`Migrations`](crate::migrations::Migrations)."
                 .to_string(),
@@ -1084,14 +1060,13 @@ mod tests {
             is_public: false,
             target_type: DocstringTarget::Function,
         };
-        let violations = checker.check_docstring(&docstring);
+        let violations = Pep257Checker::check_docstring(&docstring);
         assert!(!violations.iter().any(|v| v.rule == "D405"));
     }
 
     /// D405: Reference-style link label should NOT trigger
     #[test]
     fn test_d405_reference_style_link_label() {
-        let checker = Pep257Checker::new();
         let docstring = Docstring {
             content: "[`Migrations`][crate::migrations::Migrations].".to_string(),
             raw_content: "/// [`Migrations`][crate::migrations::Migrations].".to_string(),
@@ -1101,7 +1076,7 @@ mod tests {
             is_public: false,
             target_type: DocstringTarget::Function,
         };
-        let violations = checker.check_docstring(&docstring);
+        let violations = Pep257Checker::check_docstring(&docstring);
         // Should not trigger on the label part [crate::migrations::Migrations]
         assert!(!violations.iter().any(|v| v.rule == "D405"));
     }
@@ -1109,7 +1084,6 @@ mod tests {
     /// D405: Brackets inside inline code should NOT trigger
     #[test]
     fn test_d405_inside_backticks() {
-        let checker = Pep257Checker::new();
         let docstring = Docstring {
             content: "Test with attribute macro `#[butane::model]`.".to_string(),
             raw_content: "/// Test with attribute macro `#[butane::model]`.".to_string(),
@@ -1119,14 +1093,13 @@ mod tests {
             is_public: false,
             target_type: DocstringTarget::Function,
         };
-        let violations = checker.check_docstring(&docstring);
+        let violations = Pep257Checker::check_docstring(&docstring);
         assert!(!violations.iter().any(|v| v.rule == "D405"));
     }
 
     /// D406: Standalone [Option] should trigger
     #[test]
     fn test_d406_option_standalone() {
-        let checker = Pep257Checker::new();
         let docstring = Docstring {
             content: "Returns an [Option] containing the result.".to_string(),
             raw_content: "/// Returns an [Option] containing the result.".to_string(),
@@ -1136,7 +1109,7 @@ mod tests {
             is_public: false,
             target_type: DocstringTarget::Function,
         };
-        let violations = checker.check_docstring(&docstring);
+        let violations = Pep257Checker::check_docstring(&docstring);
         assert!(violations.iter().any(|v| v.rule == "D406"));
         let d406_violation = violations.iter().find(|v| v.rule == "D406").unwrap();
         assert!(d406_violation.message.contains("Option"));
@@ -1145,7 +1118,6 @@ mod tests {
     /// D406: [Result] with URL should trigger
     #[test]
     fn test_d406_result_with_url() {
-        let checker = Pep257Checker::new();
         let docstring = Docstring {
             content: "Returns a [Result](std::result::Result) value.".to_string(),
             raw_content: "/// Returns a [Result](std::result::Result) value.".to_string(),
@@ -1155,14 +1127,13 @@ mod tests {
             is_public: false,
             target_type: DocstringTarget::Function,
         };
-        let violations = checker.check_docstring(&docstring);
+        let violations = Pep257Checker::check_docstring(&docstring);
         assert!(violations.iter().any(|v| v.rule == "D406"));
     }
 
     /// D406: Backticked [`Option`] should NOT trigger
     #[test]
     fn test_d406_option_with_backticks() {
-        let checker = Pep257Checker::new();
         let docstring = Docstring {
             content: "Returns an [`Option`] containing the result.".to_string(),
             raw_content: "/// Returns an [`Option`] containing the result.".to_string(),
@@ -1172,14 +1143,13 @@ mod tests {
             is_public: false,
             target_type: DocstringTarget::Function,
         };
-        let violations = checker.check_docstring(&docstring);
+        let violations = Pep257Checker::check_docstring(&docstring);
         assert!(!violations.iter().any(|v| v.rule == "D406"));
     }
 
     /// D406: Inline code `Option` should NOT trigger
     #[test]
     fn test_d406_inline_code() {
-        let checker = Pep257Checker::new();
         let docstring = Docstring {
             content: "Returns an `Option` containing the result.".to_string(),
             raw_content: "/// Returns an `Option` containing the result.".to_string(),
@@ -1189,14 +1159,13 @@ mod tests {
             is_public: false,
             target_type: DocstringTarget::Function,
         };
-        let violations = checker.check_docstring(&docstring);
+        let violations = Pep257Checker::check_docstring(&docstring);
         assert!(!violations.iter().any(|v| v.rule == "D406"));
     }
 
     /// D406: Multiple common types should trigger for each
     #[test]
     fn test_d406_multiple_types() {
-        let checker = Pep257Checker::new();
         let docstring = Docstring {
             content: "Returns [Option] or [Result] or [Vec].".to_string(),
             raw_content: "/// Returns [Option] or [Result] or [Vec].".to_string(),
@@ -1206,7 +1175,7 @@ mod tests {
             is_public: false,
             target_type: DocstringTarget::Function,
         };
-        let violations = checker.check_docstring(&docstring);
+        let violations = Pep257Checker::check_docstring(&docstring);
         let d406_violations: Vec<_> = violations.iter().filter(|v| v.rule == "D406").collect();
         assert_eq!(d406_violations.len(), 3);
     }
@@ -1214,7 +1183,6 @@ mod tests {
     /// D406: Custom type [MyOption] should NOT trigger
     #[test]
     fn test_d406_custom_type() {
-        let checker = Pep257Checker::new();
         let docstring = Docstring {
             content: "Returns a [MyOption] containing the result.".to_string(),
             raw_content: "/// Returns a [MyOption] containing the result.".to_string(),
@@ -1224,14 +1192,13 @@ mod tests {
             is_public: false,
             target_type: DocstringTarget::Function,
         };
-        let violations = checker.check_docstring(&docstring);
+        let violations = Pep257Checker::check_docstring(&docstring);
         assert!(!violations.iter().any(|v| v.rule == "D406"));
     }
 
     /// D406: Brackets inside inline code should NOT trigger
     #[test]
     fn test_d406_inside_backticks() {
-        let checker = Pep257Checker::new();
         let docstring = Docstring {
             content: "Use `[Option]` or `[Result]` in inline code.".to_string(),
             raw_content: "/// Use `[Option]` or `[Result]` in inline code.".to_string(),
@@ -1241,7 +1208,7 @@ mod tests {
             is_public: false,
             target_type: DocstringTarget::Function,
         };
-        let violations = checker.check_docstring(&docstring);
+        let violations = Pep257Checker::check_docstring(&docstring);
         assert!(!violations.iter().any(|v| v.rule == "D406"));
     }
 
@@ -1256,11 +1223,8 @@ mod tests {
             severity: Severity::Error,
         };
 
-        let formatted = format!("{}", violation);
-        assert_eq!(
-            formatted,
-            "42:5 error [D400]: First line should end with a period"
-        );
+        let formatted = format!("{violation}");
+        assert_eq!(formatted, "42:5 error [D400]: First line should end with a period");
     }
 
     /// Test Display implementation for Violation with Warning severity
@@ -1274,11 +1238,8 @@ mod tests {
             severity: Severity::Warning,
         };
 
-        let formatted = format!("{}", violation);
-        assert_eq!(
-            formatted,
-            "10:1 warning [D401]: First line should be in imperative mood"
-        );
+        let formatted = format!("{violation}");
+        assert_eq!(formatted, "10:1 warning [D401]: First line should be in imperative mood");
     }
 
     /// Test Display implementation with multi-digit line and column numbers
@@ -1292,7 +1253,7 @@ mod tests {
             severity: Severity::Error,
         };
 
-        let formatted = format!("{}", violation);
+        let formatted = format!("{violation}");
         assert_eq!(
             formatted,
             "1234:567 error [D205]: 1 blank line required between summary line and description"
@@ -1304,13 +1265,14 @@ mod tests {
     fn test_violation_display_special_chars() {
         let violation = Violation {
             rule: "D405".to_string(),
-            message: "Markdown link text looks like code but lacks backticks: [SqlType::Custom] should be [`SqlType::Custom`]".to_string(),
+            message: "Markdown link text looks like code but lacks backticks: ".to_owned()
+                + "[SqlType::Custom] should be [`SqlType::Custom`]",
             line: 5,
             column: 20,
             severity: Severity::Warning,
         };
 
-        let formatted = format!("{}", violation);
+        let formatted = format!("{violation}");
         assert!(formatted.starts_with("5:20 warning [D405]:"));
         assert!(formatted.contains("[SqlType::Custom]"));
         assert!(formatted.contains("[`SqlType::Custom`]"));
@@ -1328,8 +1290,8 @@ mod tests {
             severity: Severity::Warning,
         };
 
-        let formatted = format!("{}", violation);
-        assert_eq!(formatted, format!("99:8 warning [D406]: {}", message));
+        let formatted = format!("{violation}");
+        assert_eq!(formatted, format!("99:8 warning [D406]: {message}"));
     }
 
     /// Test Display implementation with line 1, column 1
@@ -1343,11 +1305,8 @@ mod tests {
             severity: Severity::Error,
         };
 
-        let formatted = format!("{}", violation);
-        assert_eq!(
-            formatted,
-            "1:1 error [D100]: Missing docstring in public function"
-        );
+        let formatted = format!("{violation}");
+        assert_eq!(formatted, "1:1 error [D100]: Missing docstring in public function");
     }
 
     /// Test that to_string() works correctly (uses Display)
@@ -1371,7 +1330,7 @@ mod tests {
     /// Test Display formatting consistency across multiple violations
     #[test]
     fn test_violation_display_consistency() {
-        let violations = vec![
+        let violations = [
             Violation {
                 rule: "D201".to_string(),
                 message: "No blank lines allowed before function docstring".to_string(),
@@ -1396,7 +1355,7 @@ mod tests {
         ];
 
         // Verify each violation formats correctly and consistently
-        let formatted: Vec<String> = violations.iter().map(|v| format!("{}", v)).collect();
+        let formatted: Vec<String> = violations.iter().map(|v| format!("{v}")).collect();
 
         assert_eq!(
             formatted[0],
@@ -1429,13 +1388,12 @@ mod tests {
     /// Summary paragraph wraps across lines — should trigger D400 but not D205
     #[test]
     fn test_wrapped_summary_no_false_positives() {
-        let checker = Pep257Checker::new();
         let docstring = Docstring {
-            content: "Summary line that continues on to the next line incorrectly\ndue to wrapping."
-                .to_string(),
-            raw_content:
-                "/// Summary line that continues on to the next line incorrectly\n/// due to wrapping."
+            content:
+                "Summary line that continues on to the next line incorrectly\ndue to wrapping."
                     .to_string(),
+            raw_content: "/// Summary line that continues on to the next line ".to_owned()
+                + "incorrectly\n/// due to wrapping.",
             line: 1,
             column: 1,
             is_multiline: true,
@@ -1443,7 +1401,7 @@ mod tests {
             target_type: DocstringTarget::Function,
         };
 
-        let violations = checker.check_docstring(&docstring);
+        let violations = Pep257Checker::check_docstring(&docstring);
         // Summary must be single-line, so wrapped summaries should trigger D400
         // But it should NOT trigger D205 since there's no description following
         assert!(violations.iter().any(|v| v.rule == "D400"));
@@ -1453,10 +1411,12 @@ mod tests {
     /// Missing blank line between summary paragraph and description should trigger D205
     #[test]
     fn test_missing_blank_line_triggers_d205() {
-        let checker = Pep257Checker::new();
         let docstring = Docstring {
-            content: "Summary line that ends properly.\nThis is a description line immediately following the summary without a blank line.".to_string(),
-            raw_content: "/// Summary line that ends properly.\n/// This is a description line immediately following the summary without a blank line.".to_string(),
+            content: "Summary line that ends properly.\nThis is a description ".to_owned()
+                + "line immediately following the summary without a blank line.",
+            raw_content: "/// Summary line that ends properly.\n/// This is a ".to_owned()
+                + "description line immediately following the summary without a "
+                + "blank line.",
             line: 1,
             column: 1,
             is_multiline: true,
@@ -1464,7 +1424,7 @@ mod tests {
             target_type: DocstringTarget::Function,
         };
 
-        let violations = checker.check_docstring(&docstring);
+        let violations = Pep257Checker::check_docstring(&docstring);
         assert!(
             violations.iter().any(|v| v.rule == "D205"),
             "Expected D205 when description immediately follows summary"

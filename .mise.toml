@@ -1,5 +1,9 @@
 [tools]
+"cargo:cargo-deny" = "latest"
+editorconfig-checker = "latest"
 rust = "latest"
 typos = "latest"
 osv-scanner = "latest"
-"cargo:cargo-deny" = "latest"
+jq = "latest"
+zizmor = "latest"
+shfmt = "latest"

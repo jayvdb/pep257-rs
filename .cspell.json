@@ -1,0 +1,19 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "words": [],
+  "ignorePaths": [],
+  "dictionaries": ["project-dictionary", "rust-dependencies"],
+  "dictionaryDefinitions": [
+    {
+      "name": "project-dictionary",
+      "path": ".github/.cspell/project-dictionary.txt",
+      "addWords": true
+    },
+    {
+      "name": "rust-dependencies",
+      "path": ".github/.cspell/rust-dependencies.txt",
+      "addWords": false
+    }
+  ]
+}
