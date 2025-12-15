@@ -145,22 +145,28 @@ impl Pep257Checker {
             return violations;
         }
 
-        // D201: No blank lines allowed before function docstring
-        if docstring.target_type == DocstringTarget::Function && content.starts_with('\n') {
+        // D201: No blank lines allowed before docstring
+        if content.starts_with('\n') {
             violations.push(Violation {
                 rule: "D201".to_string(),
-                message: "No blank lines allowed before function docstring".to_string(),
+                message: format!(
+                    "No blank lines allowed before {} docstring",
+                    docstring.target_type
+                ),
                 line: docstring.line,
                 column: docstring.column,
                 severity: Severity::Error,
             });
         }
 
-        // D202: No blank lines allowed after function docstring
-        if docstring.target_type == DocstringTarget::Function && content.ends_with('\n') {
+        // D202: No blank lines allowed after docstring
+        if content.ends_with('\n') {
             violations.push(Violation {
                 rule: "D202".to_string(),
-                message: "No blank lines allowed after function docstring".to_string(),
+                message: format!(
+                    "No blank lines allowed after {} docstring",
+                    docstring.target_type
+                ),
                 line: docstring.line + lines.len() - 1,
                 column: docstring.column,
                 severity: Severity::Error,
@@ -960,6 +966,23 @@ mod tests {
         assert!(violations.iter().any(|v| v.rule == "D402"));
     }
 
+    /// D402: Capitalized signature should still trigger D402
+    #[test]
+    fn test_d402_capitalized_signature() {
+        let docstring = Docstring {
+            content: "Add(a: i32, b: i32) -> i32.".to_string(),
+            raw_content: "/// Add(a: i32, b: i32) -> i32.".to_string(),
+            line: 1,
+            column: 1,
+            is_multiline: false,
+            is_public: false,
+            target_type: DocstringTarget::Function,
+        };
+        let violations = Pep257Checker::check_docstring(&docstring);
+        // Should trigger D402 because it's a signature pattern with ->
+        assert!(violations.iter().any(|v| v.rule == "D402"));
+    }
+
     /// D405: Markdown link with code reference should have backticks
     #[test]
     fn test_d405_markdown_link_without_backticks() {
@@ -1383,6 +1406,229 @@ mod tests {
                 "Should contain rule in brackets"
             );
         }
+    }
+
+    /// D201: Test blank line before function docstring
+    #[test]
+    fn test_d201_function_with_leading_blank() {
+        let docstring = Docstring {
+            content: "\nCalculate the sum.".to_string(),
+            raw_content: "///\n/// Calculate the sum.".to_string(),
+            line: 1,
+            column: 1,
+            is_multiline: true,
+            is_public: true,
+            target_type: DocstringTarget::Function,
+        };
+
+        let violations = Pep257Checker::check_docstring(&docstring);
+        assert!(violations.iter().any(|v| v.rule == "D201"));
+        let d201 = violations.iter().find(|v| v.rule == "D201").unwrap();
+        assert!(d201.message.contains("function"));
+    }
+
+    /// D201: Test blank line before struct docstring
+    #[test]
+    fn test_d201_struct_with_leading_blank() {
+        let docstring = Docstring {
+            content: "\nRepresents a point in 2D space.".to_string(),
+            raw_content: "///\n/// Represents a point in 2D space.".to_string(),
+            line: 1,
+            column: 1,
+            is_multiline: true,
+            is_public: true,
+            target_type: DocstringTarget::Struct,
+        };
+
+        let violations = Pep257Checker::check_docstring(&docstring);
+        assert!(violations.iter().any(|v| v.rule == "D201"));
+        let d201 = violations.iter().find(|v| v.rule == "D201").unwrap();
+        assert!(d201.message.contains("struct"));
+    }
+
+    /// D201: Test blank line before enum docstring
+    #[test]
+    fn test_d201_enum_with_leading_blank() {
+        let docstring = Docstring {
+            content: "\nRepresents different states.".to_string(),
+            raw_content: "///\n/// Represents different states.".to_string(),
+            line: 1,
+            column: 1,
+            is_multiline: true,
+            is_public: true,
+            target_type: DocstringTarget::Enum,
+        };
+
+        let violations = Pep257Checker::check_docstring(&docstring);
+        assert!(violations.iter().any(|v| v.rule == "D201"));
+        let d201 = violations.iter().find(|v| v.rule == "D201").unwrap();
+        assert!(d201.message.contains("enum"));
+    }
+
+    /// D201: Test blank line before trait docstring
+    #[test]
+    fn test_d201_trait_with_leading_blank() {
+        let docstring = Docstring {
+            content: "\nDefines behavior for serialization.".to_string(),
+            raw_content: "///\n/// Defines behavior for serialization.".to_string(),
+            line: 1,
+            column: 1,
+            is_multiline: true,
+            is_public: true,
+            target_type: DocstringTarget::Trait,
+        };
+
+        let violations = Pep257Checker::check_docstring(&docstring);
+        assert!(violations.iter().any(|v| v.rule == "D201"));
+        let d201 = violations.iter().find(|v| v.rule == "D201").unwrap();
+        assert!(d201.message.contains("trait"));
+    }
+
+    /// D201: Test no false positive when docstring starts properly
+    #[test]
+    fn test_d201_no_false_positive() {
+        let docstring = Docstring {
+            content: "Calculate the sum.".to_string(),
+            raw_content: "/// Calculate the sum.".to_string(),
+            line: 1,
+            column: 1,
+            is_multiline: false,
+            is_public: true,
+            target_type: DocstringTarget::Function,
+        };
+
+        let violations = Pep257Checker::check_docstring(&docstring);
+        assert!(!violations.iter().any(|v| v.rule == "D201"));
+    }
+
+    /// D202: Test blank line after function docstring
+    #[test]
+    fn test_d202_function_with_trailing_blank() {
+        let docstring = Docstring {
+            content: "Calculate the sum.\n".to_string(),
+            raw_content: "/// Calculate the sum.\n///".to_string(),
+            line: 1,
+            column: 1,
+            is_multiline: true,
+            is_public: true,
+            target_type: DocstringTarget::Function,
+        };
+
+        let violations = Pep257Checker::check_docstring(&docstring);
+        assert!(violations.iter().any(|v| v.rule == "D202"));
+        let d202 = violations.iter().find(|v| v.rule == "D202").unwrap();
+        assert!(d202.message.contains("function"));
+    }
+
+    /// D202: Test blank line after struct docstring
+    #[test]
+    fn test_d202_struct_with_trailing_blank() {
+        let docstring = Docstring {
+            content: "Represents a point in 2D space.\n".to_string(),
+            raw_content: "/// Represents a point in 2D space.\n///".to_string(),
+            line: 1,
+            column: 1,
+            is_multiline: true,
+            is_public: true,
+            target_type: DocstringTarget::Struct,
+        };
+
+        let violations = Pep257Checker::check_docstring(&docstring);
+        assert!(violations.iter().any(|v| v.rule == "D202"));
+        let d202 = violations.iter().find(|v| v.rule == "D202").unwrap();
+        assert!(d202.message.contains("struct"));
+    }
+
+    /// D202: Test blank line after enum docstring
+    #[test]
+    fn test_d202_enum_with_trailing_blank() {
+        let docstring = Docstring {
+            content: "Represents different states.\n".to_string(),
+            raw_content: "/// Represents different states.\n///".to_string(),
+            line: 1,
+            column: 1,
+            is_multiline: true,
+            is_public: true,
+            target_type: DocstringTarget::Enum,
+        };
+
+        let violations = Pep257Checker::check_docstring(&docstring);
+        assert!(violations.iter().any(|v| v.rule == "D202"));
+        let d202 = violations.iter().find(|v| v.rule == "D202").unwrap();
+        assert!(d202.message.contains("enum"));
+    }
+
+    /// D202: Test blank line after trait docstring
+    #[test]
+    fn test_d202_trait_with_trailing_blank() {
+        let docstring = Docstring {
+            content: "Defines behavior for serialization.\n".to_string(),
+            raw_content: "/// Defines behavior for serialization.\n///".to_string(),
+            line: 1,
+            column: 1,
+            is_multiline: true,
+            is_public: true,
+            target_type: DocstringTarget::Trait,
+        };
+
+        let violations = Pep257Checker::check_docstring(&docstring);
+        assert!(violations.iter().any(|v| v.rule == "D202"));
+        let d202 = violations.iter().find(|v| v.rule == "D202").unwrap();
+        assert!(d202.message.contains("trait"));
+    }
+
+    /// D202: Test blank line after const docstring
+    #[test]
+    fn test_d202_const_with_trailing_blank() {
+        let docstring = Docstring {
+            content: "Maximum buffer size.\n".to_string(),
+            raw_content: "/// Maximum buffer size.\n///".to_string(),
+            line: 1,
+            column: 1,
+            is_multiline: true,
+            is_public: true,
+            target_type: DocstringTarget::Const,
+        };
+
+        let violations = Pep257Checker::check_docstring(&docstring);
+        assert!(violations.iter().any(|v| v.rule == "D202"));
+        let d202 = violations.iter().find(|v| v.rule == "D202").unwrap();
+        assert!(d202.message.contains("const"));
+    }
+
+    /// D202: Test no false positive when docstring ends properly
+    #[test]
+    fn test_d202_no_false_positive() {
+        let docstring = Docstring {
+            content: "Calculate the sum.".to_string(),
+            raw_content: "/// Calculate the sum.".to_string(),
+            line: 1,
+            column: 1,
+            is_multiline: false,
+            is_public: true,
+            target_type: DocstringTarget::Function,
+        };
+
+        let violations = Pep257Checker::check_docstring(&docstring);
+        assert!(!violations.iter().any(|v| v.rule == "D202"));
+    }
+
+    /// D201 and D202: Test both blank lines before and after
+    #[test]
+    fn test_d201_and_d202_both_violations() {
+        let docstring = Docstring {
+            content: "\nCalculate the sum.\n".to_string(),
+            raw_content: "///\n/// Calculate the sum.\n///".to_string(),
+            line: 1,
+            column: 1,
+            is_multiline: true,
+            is_public: true,
+            target_type: DocstringTarget::Function,
+        };
+
+        let violations = Pep257Checker::check_docstring(&docstring);
+        assert!(violations.iter().any(|v| v.rule == "D201"));
+        assert!(violations.iter().any(|v| v.rule == "D202"));
     }
 
     /// Summary paragraph wraps across lines — should trigger D400 but not D205

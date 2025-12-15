@@ -521,14 +521,8 @@ impl RustParser {
             }
         }
 
-        // Remove empty lines at the beginning and end
-        while processed_lines.first().is_some_and(|line| line.trim().is_empty()) {
-            processed_lines.remove(0);
-        }
-        while processed_lines.last().is_some_and(|line| line.trim().is_empty()) {
-            processed_lines.pop();
-        }
-
+        // DO NOT remove empty lines at the beginning and end
+        // We need to preserve them for D201 and D202 checks
         processed_lines.join("\n")
     }
 }
