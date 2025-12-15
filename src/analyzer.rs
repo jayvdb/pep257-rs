@@ -99,6 +99,6 @@ fn add(a: i32, b: i32) -> i32 {
         // 3. Missing docstring for subtract function
         assert!(violations.iter().any(|v| v.rule == "D400")); // Missing period
         assert!(violations.iter().any(|v| v.rule == "D403")); // Not capitalized
-        assert!(violations.iter().any(|v| v.rule == "D100")); // Missing docstring
+        assert!(violations.iter().any(|v| v.rule == "D103")); // Missing function docstring
     }
 }

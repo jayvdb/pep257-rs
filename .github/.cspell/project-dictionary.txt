@@ -6,6 +6,7 @@ cfgs
 Clippy
 ctypes
 docstrings
+eprintln
 HEALTHCHECK
 idents
 illumos
@@ -19,6 +20,7 @@ pascalcase
 peekable
 pipefail
 pipx
+Pylint
 pydocstyle
 repr
 rustc
@@ -33,5 +35,6 @@ taiki
 taplo
 tomlq
 turbofish
+usize
 Vandenberg
 zizmor
