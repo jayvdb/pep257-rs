@@ -1,6 +1,6 @@
 use std::{path::PathBuf, process};
 
-use clap::{Parser as ClapParser, Subcommand, ValueEnum};
+use clap::{CommandFactory, Parser as ClapParser, Subcommand, ValueEnum};
 use clap_verbosity_flag::Verbosity;
 
 /// Analyzer module for Rust documentation.
@@ -24,10 +24,6 @@ struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
 
-    /// Input file to check
-    #[arg(short, long)]
-    file: Option<PathBuf>,
-
     /// Show warnings in addition to errors
     #[arg(short, long)]
     warnings: bool,
@@ -49,18 +45,10 @@ struct Cli {
 /// Available subcommands for the CLI.
 #[derive(Debug, Subcommand)]
 enum Commands {
-    /// Check a single file
+    /// Check a file or directory (defaults to current directory)
     Check {
-        /// File to check
-        file: PathBuf,
-    },
-    /// Check all Rust files in a directory
-    CheckDir {
-        /// Directory to check
-        dir: PathBuf,
-        /// Check files recursively
-        #[arg(short, long)]
-        recursive: bool,
+        /// Path to check (file or directory, defaults to current directory)
+        path: Option<PathBuf>,
     },
 }
 
@@ -96,19 +84,23 @@ fn run(cli: &Cli) -> Result<(), Box<dyn std::error::Error>> {
     let mut total_violations = 0;
 
     match &cli.command {
-        Some(Commands::Check { file }) => {
-            total_violations += check_file(&mut analyzer, file, cli)?;
-        }
-        Some(Commands::CheckDir { dir, recursive }) => {
-            total_violations += check_directory(&mut analyzer, dir, *recursive, cli)?;
-        }
-        None => {
-            if let Some(ref file) = cli.file {
-                total_violations += check_file(&mut analyzer, file, cli)?;
+        Some(Commands::Check { path }) => {
+            let target_path =
+                path.as_ref().map(|p| p.clone()).unwrap_or_else(|| PathBuf::from("."));
+
+            if target_path.is_file() {
+                total_violations += check_file(&mut analyzer, &target_path, cli)?;
+            } else if target_path.is_dir() {
+                total_violations += check_directory(&mut analyzer, &target_path, true, cli)?;
             } else {
-                eprintln!("No file or command specified. Use --help for usage information.");
+                eprintln!("Path does not exist: {}", target_path.display());
                 process::exit(1);
             }
+        }
+        None => {
+            // Show help when no command is provided
+            Cli::command().print_help()?;
+            process::exit(0);
         }
     }
 
