@@ -2,3 +2,8 @@ rules:
   excessive-permissions:
     ignore:
       - ci.yml:5
+
+  unpinned-uses:
+    config:
+      policies:
+        taiki-e/*: ref-pin
