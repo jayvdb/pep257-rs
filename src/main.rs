@@ -16,6 +16,25 @@ use crate::{analyzer::RustDocAnalyzer, pep257::Severity};
 #[derive(ClapParser, Debug)]
 #[command(name = "pep257")]
 #[command(about = "A tool to check Rust docstrings against PEP 257 conventions")]
+#[command(long_about = "A tool to check Rust docstrings against PEP 257 conventions.
+
+Supports multiple comment styles: ///, /** */, and #[doc = \"...\"].
+
+Examples:
+  # Check current directory
+  pep257 check
+
+  # Check a specific file
+  pep257 check src/main.rs
+
+  # Check a directory recursively
+  pep257 check src/
+
+  # Show warnings in addition to errors
+  pep257 check --warnings
+
+  # Output in JSON format
+  pep257 check --format json")]
 #[command(version)]
 struct Cli {
     #[command(flatten)]
