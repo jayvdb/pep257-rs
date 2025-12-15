@@ -50,7 +50,7 @@ impl RustParser {
         let mut docstrings = Vec::new();
 
         // Extract crate/package-level documentation (//! comments at the top of file)
-        docstrings.extend(self.extract_package_docs(&tree, source_code)?);
+        docstrings.extend(Self::extract_package_docs(&tree, source_code));
 
         // Extract docstrings from various Rust constructs
         docstrings.extend(self.extract_function_docs(&tree, source_code)?);
@@ -70,11 +70,7 @@ impl RustParser {
     ///
     /// This checks for //! or /*! */ comments at the beginning of the file,
     /// which document the crate/module/package itself (D104).
-    fn extract_package_docs(
-        &self,
-        tree: &Tree,
-        source: &str,
-    ) -> Result<Vec<Docstring>, ParseError> {
+    fn extract_package_docs(tree: &Tree, source: &str) -> Vec<Docstring> {
         let root_node = tree.root_node();
         let mut inner_doc_comments = Vec::new();
 
@@ -105,7 +101,6 @@ impl RustParser {
                 }
                 "whitespace" => {
                     // Skip whitespace
-                    continue;
                 }
                 _ => {
                     // Stop at first non-comment, non-whitespace node
@@ -119,7 +114,7 @@ impl RustParser {
             let content = Self::process_inner_doc_comments(&inner_doc_comments);
             let is_multiline = inner_doc_comments.len() > 1 || content.contains('\n');
 
-            return Ok(vec![Docstring {
+            return vec![Docstring {
                 content,
                 raw_content: inner_doc_comments.join("\n"),
                 line: 1,
@@ -127,7 +122,7 @@ impl RustParser {
                 is_multiline,
                 is_public: true, // Package-level docs are always public
                 target_type: DocstringTarget::Package,
-            }]);
+            }];
         }
 
         // No inner doc comments found - don't report missing for simple test files
@@ -142,7 +137,7 @@ impl RustParser {
 
         if has_pub_items {
             // This looks like a real module/crate file, report missing package docs
-            Ok(vec![Docstring {
+            vec![Docstring {
                 content: String::new(),
                 raw_content: String::new(),
                 line: 1,
@@ -150,10 +145,10 @@ impl RustParser {
                 is_multiline: false,
                 is_public: true,
                 target_type: DocstringTarget::Package,
-            }])
+            }]
         } else {
             // No public items, probably just a test snippet - don't report missing
-            Ok(vec![])
+            Vec::new()
         }
     }
 
@@ -574,11 +569,11 @@ impl RustParser {
             let mut check_node = node;
             while let Some(prev) = check_node.prev_sibling() {
                 if prev.kind() == "attribute_item" {
-                    if let Ok(attr_text) = prev.utf8_text(source.as_bytes()) {
-                        if attr_text.contains("macro_export") {
-                            is_public = true;
-                            break;
-                        }
+                    if let Ok(attr_text) = prev.utf8_text(source.as_bytes())
+                        && attr_text.contains("macro_export")
+                    {
+                        is_public = true;
+                        break;
                     }
                 } else if prev.kind() == "line_comment" || prev.kind() == "block_comment" {
                     // Skip comments
@@ -902,11 +897,11 @@ pub type UndocumentedType = i32;
     #[test]
     fn test_parse_undocumented_macro() {
         let mut parser = RustParser::new().unwrap();
-        let source = r#"
+        let source = r"
 macro_rules! undocumented {
     () => { };
 }
-"#;
+";
 
         let docstrings = parser.parse_source(source).unwrap();
         assert_eq!(docstrings.len(), 1);

@@ -2,7 +2,9 @@
 //!
 //! Provides various calculation and utility functions.
 
+#[cfg(any())]
 pub mod calculator;
+#[cfg(any())]
 pub mod utils;
 
 /// Add two numbers.

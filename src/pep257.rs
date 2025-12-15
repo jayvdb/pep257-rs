@@ -126,7 +126,7 @@ impl Pep257Checker {
                 Self::get_missing_docstring_rule(docstring.target_type);
             violations.push(Violation {
                 rule: rule_code,
-                message: format!("Missing docstring in public {}", item_description),
+                message: format!("Missing docstring in public {item_description}"),
                 line: docstring.line,
                 column: docstring.column,
                 severity: Severity::Error,

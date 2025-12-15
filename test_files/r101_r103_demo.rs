@@ -17,7 +17,7 @@ macro_rules! log_error {
 // Missing docstring - should trigger R103
 #[macro_export]
 macro_rules! bad_macro {
-    () => { };
+    () => {};
 }
 
 /// A simple error type for this module.

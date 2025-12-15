@@ -1,6 +1,8 @@
 // Missing crate-level documentation - should trigger D104
 
+#[cfg(any())]
 pub mod calculator;
+#[cfg(any())]
 pub mod utils;
 
 /// Add two numbers.

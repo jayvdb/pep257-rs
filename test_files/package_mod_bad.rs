@@ -1,6 +1,8 @@
 // Missing module-level documentation - should trigger D104
 
+#[cfg(any())]
 pub mod helpers;
+#[cfg(any())]
 pub mod validators;
 
 /// Helper function.

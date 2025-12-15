@@ -2,7 +2,9 @@
 //!
 //! Contains helper functions used throughout the crate.
 
+#[cfg(any())]
 pub mod helpers;
+#[cfg(any())]
 pub mod validators;
 
 /// Helper function.
