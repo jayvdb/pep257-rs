@@ -1,8 +1,9 @@
 # PEP 257 Rust Docstring Checker
 
 A Rust tool that uses tree-sitter to parse Rust files and check that
-documentation comments (docstrings) follow PEP 257 conventions as much as
-possible within the context of Rust code.
+documentation comments (docstrings) follow Python's
+[PEP 257 conventions](https://peps.python.org/pep-0257/) as much as possible
+within the context of Rust code.
 
 ## Features
 
