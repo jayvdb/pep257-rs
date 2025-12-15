@@ -59,11 +59,14 @@ pub(crate) enum DocstringTarget {
     Struct,
     Enum,
     Module,
+    Package,
     Impl,
     Trait,
     Const,
     #[allow(dead_code)]
     Static,
+    TypeAlias,
+    Macro,
 }
 
 /// Format a docstring target for display.
@@ -75,10 +78,13 @@ impl fmt::Display for DocstringTarget {
             DocstringTarget::Struct => "struct",
             DocstringTarget::Enum => "enum",
             DocstringTarget::Module => "module",
+            DocstringTarget::Package => "package",
             DocstringTarget::Impl => "impl",
             DocstringTarget::Trait => "trait",
             DocstringTarget::Const => "const",
             DocstringTarget::Static => "static",
+            DocstringTarget::TypeAlias => "type alias",
+            DocstringTarget::Macro => "macro",
         };
         write!(f, "{name}")
     }
@@ -116,9 +122,11 @@ impl Pep257Checker {
 
         // Skip empty docstrings
         if docstring.content.trim().is_empty() && docstring.is_public {
+            let (rule_code, item_description) =
+                Self::get_missing_docstring_rule(docstring.target_type);
             violations.push(Violation {
-                rule: "D100".to_string(),
-                message: format!("Missing docstring in public {}", docstring.target_type),
+                rule: rule_code,
+                message: format!("Missing docstring in public {}", item_description),
                 line: docstring.line,
                 column: docstring.column,
                 severity: Severity::Error,
@@ -255,18 +263,6 @@ impl Pep257Checker {
                     severity: Severity::Warning,
                 });
             }
-
-            // D302: Use u""" for Unicode docstrings
-            // Less relevant for Rust, but we can check for Unicode content
-            if docstring.content.chars().any(|c| c as u32 > 127) {
-                violations.push(Violation {
-                    rule: "D302".to_string(),
-                    message: "Docstring contains Unicode characters".to_string(),
-                    line: docstring.line,
-                    column: docstring.column,
-                    severity: Severity::Warning,
-                });
-            }
         }
 
         violations
@@ -358,10 +354,27 @@ impl Pep257Checker {
             });
         }
 
-        // D405: Markdown links with code references should have backticks inside brackets
+        // R401: Markdown links with code references should have backticks inside brackets
         violations.extend(Self::check_markdown_link_backticks(docstring));
 
         violations
+    }
+
+    /// Get the appropriate rule code and description for a missing docstring based on target type.
+    fn get_missing_docstring_rule(target_type: DocstringTarget) -> (String, &'static str) {
+        match target_type {
+            DocstringTarget::Module => ("D100".to_string(), "module"),
+            DocstringTarget::Package => ("D104".to_string(), "package"),
+            DocstringTarget::Struct => ("D101".to_string(), "struct"),
+            DocstringTarget::Enum => ("D101".to_string(), "enum"),
+            DocstringTarget::Trait => ("D101".to_string(), "trait"),
+            DocstringTarget::Function => ("D103".to_string(), "function"),
+            DocstringTarget::Impl => ("D102".to_string(), "method"),
+            DocstringTarget::Const => ("R102".to_string(), "const"),
+            DocstringTarget::Static => ("R102".to_string(), "static"),
+            DocstringTarget::TypeAlias => ("R101".to_string(), "type alias"),
+            DocstringTarget::Macro => ("R103".to_string(), "macro"),
+        }
     }
 
     /// Determine if a line is not in imperative mood using the imperative crate.
@@ -573,7 +586,7 @@ impl Pep257Checker {
                         && !Self::has_backticks(&link_text)
                     {
                         violations.push(Violation {
-                            rule: "D405".to_string(),
+                            rule: "R401".to_string(),
                             message: format!(
                                 concat!(
                                     "Markdown link text looks like code but lacks ",
@@ -624,7 +637,8 @@ impl Pep257Checker {
     }
 
     /// Check for common Rust types that should use backticks instead of markdown links.
-    /// D406: Common types like [Option] and [Result] should be `Option` and `Result`.
+    ///
+    /// R402: Common types like [Option] and [Result] should be `Option` and `Result`.
     fn check_common_rust_types(docstring: &Docstring) -> Vec<Violation> {
         let mut violations = Vec::new();
         let content = &docstring.content;
@@ -759,7 +773,7 @@ impl Pep257Checker {
                         }
 
                         violations.push(Violation {
-                            rule: "D406".to_string(),
+                            rule: "R402".to_string(),
                             message: format!(
                                 "Use inline code for common Rust type: [{}]{} should be `{}`",
                                 trimmed_text,
@@ -793,19 +807,19 @@ mod tests {
             line: 1,
             column: 1,
             is_multiline: false,
-            // This test verifies that D100 is reported for public items
+            // This test verifies that D103 is reported for public functions
             is_public: true,
             target_type: DocstringTarget::Function,
         };
 
         let violations = Pep257Checker::check_docstring(&docstring);
         assert_eq!(violations.len(), 1);
-        assert_eq!(violations[0].rule, "D100");
+        assert_eq!(violations[0].rule, "D103");
     }
 
-    /// Test that empty docstring for a private function does NOT trigger D100
+    /// Test that empty docstring for a private function does NOT trigger D103
     #[test]
-    fn test_empty_docstring_private_no_d100() {
+    fn test_empty_docstring_private_no_d103() {
         let docstring = Docstring {
             content: String::new(),
             raw_content: String::new(),
@@ -817,8 +831,198 @@ mod tests {
         };
 
         let violations = Pep257Checker::check_docstring(&docstring);
-        // Private functions should not trigger D100 for missing docstrings
-        assert!(!violations.iter().any(|v| v.rule == "D100"));
+        // Private functions should not trigger D103 for missing docstrings
+        assert!(!violations.iter().any(|v| v.rule == "D103"));
+    }
+
+    /// Test empty docstring detection for module (D100)
+    #[test]
+    fn test_empty_docstring_module() {
+        let docstring = Docstring {
+            content: String::new(),
+            raw_content: String::new(),
+            line: 1,
+            column: 1,
+            is_multiline: false,
+            is_public: true,
+            target_type: DocstringTarget::Module,
+        };
+
+        let violations = Pep257Checker::check_docstring(&docstring);
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].rule, "D100");
+        assert!(violations[0].message.contains("module"));
+    }
+
+    /// Test empty docstring detection for struct (D101)
+    #[test]
+    fn test_empty_docstring_struct() {
+        let docstring = Docstring {
+            content: String::new(),
+            raw_content: String::new(),
+            line: 1,
+            column: 1,
+            is_multiline: false,
+            is_public: true,
+            target_type: DocstringTarget::Struct,
+        };
+
+        let violations = Pep257Checker::check_docstring(&docstring);
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].rule, "D101");
+        assert!(violations[0].message.contains("struct"));
+    }
+
+    /// Test empty docstring detection for enum (D101)
+    #[test]
+    fn test_empty_docstring_enum() {
+        let docstring = Docstring {
+            content: String::new(),
+            raw_content: String::new(),
+            line: 1,
+            column: 1,
+            is_multiline: false,
+            is_public: true,
+            target_type: DocstringTarget::Enum,
+        };
+
+        let violations = Pep257Checker::check_docstring(&docstring);
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].rule, "D101");
+        assert!(violations[0].message.contains("enum"));
+    }
+
+    /// Test empty docstring detection for trait (D101)
+    #[test]
+    fn test_empty_docstring_trait() {
+        let docstring = Docstring {
+            content: String::new(),
+            raw_content: String::new(),
+            line: 1,
+            column: 1,
+            is_multiline: false,
+            is_public: true,
+            target_type: DocstringTarget::Trait,
+        };
+
+        let violations = Pep257Checker::check_docstring(&docstring);
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].rule, "D101");
+        assert!(violations[0].message.contains("trait"));
+    }
+
+    /// Test empty docstring detection for method (D102)
+    #[test]
+    fn test_empty_docstring_method() {
+        let docstring = Docstring {
+            content: String::new(),
+            raw_content: String::new(),
+            line: 1,
+            column: 1,
+            is_multiline: false,
+            is_public: true,
+            target_type: DocstringTarget::Impl,
+        };
+
+        let violations = Pep257Checker::check_docstring(&docstring);
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].rule, "D102");
+        assert!(violations[0].message.contains("method"));
+    }
+
+    /// Test empty docstring detection for const (R102)
+    #[test]
+    fn test_empty_docstring_const() {
+        let docstring = Docstring {
+            content: String::new(),
+            raw_content: String::new(),
+            line: 1,
+            column: 1,
+            is_multiline: false,
+            is_public: true,
+            target_type: DocstringTarget::Const,
+        };
+
+        let violations = Pep257Checker::check_docstring(&docstring);
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].rule, "R102");
+        assert!(violations[0].message.contains("const"));
+    }
+
+    /// Test empty docstring detection for static (R102)
+    #[test]
+    fn test_empty_docstring_static() {
+        let docstring = Docstring {
+            content: String::new(),
+            raw_content: String::new(),
+            line: 1,
+            column: 1,
+            is_multiline: false,
+            is_public: true,
+            target_type: DocstringTarget::Static,
+        };
+
+        let violations = Pep257Checker::check_docstring(&docstring);
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].rule, "R102");
+        assert!(violations[0].message.contains("static"));
+    }
+
+    /// Test empty docstring detection for type alias (R101)
+    #[test]
+    fn test_empty_docstring_type_alias() {
+        let docstring = Docstring {
+            content: String::new(),
+            raw_content: String::new(),
+            line: 1,
+            column: 1,
+            is_multiline: false,
+            is_public: true,
+            target_type: DocstringTarget::TypeAlias,
+        };
+
+        let violations = Pep257Checker::check_docstring(&docstring);
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].rule, "R101");
+        assert!(violations[0].message.contains("type alias"));
+    }
+
+    /// Test empty docstring detection for macro (R103)
+    #[test]
+    fn test_empty_docstring_macro() {
+        let docstring = Docstring {
+            content: String::new(),
+            raw_content: String::new(),
+            line: 1,
+            column: 1,
+            is_multiline: false,
+            is_public: true,
+            target_type: DocstringTarget::Macro,
+        };
+
+        let violations = Pep257Checker::check_docstring(&docstring);
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].rule, "R103");
+        assert!(violations[0].message.contains("macro"));
+    }
+
+    /// Test empty docstring detection for package (D104)
+    #[test]
+    fn test_empty_docstring_package() {
+        let docstring = Docstring {
+            content: String::new(),
+            raw_content: String::new(),
+            line: 1,
+            column: 1,
+            is_multiline: false,
+            is_public: true,
+            target_type: DocstringTarget::Package,
+        };
+
+        let violations = Pep257Checker::check_docstring(&docstring);
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].rule, "D104");
+        assert!(violations[0].message.contains("package"));
     }
 
     /// Test a properly formatted docstring.
@@ -983,9 +1187,9 @@ mod tests {
         assert!(violations.iter().any(|v| v.rule == "D402"));
     }
 
-    /// D405: Markdown link with code reference should have backticks
+    /// R401: Markdown link with code reference should have backticks
     #[test]
-    fn test_d405_markdown_link_without_backticks() {
+    fn test_r401_markdown_link_without_backticks() {
         let docstring = Docstring {
             content: "For use with [SqlType::Custom](crate::SqlType).".to_string(),
             raw_content: "/// For use with [SqlType::Custom](crate::SqlType).".to_string(),
@@ -996,14 +1200,14 @@ mod tests {
             target_type: DocstringTarget::Function,
         };
         let violations = Pep257Checker::check_docstring(&docstring);
-        assert!(violations.iter().any(|v| v.rule == "D405"));
-        let d405_violation = violations.iter().find(|v| v.rule == "D405").unwrap();
-        assert!(d405_violation.message.contains("SqlType::Custom"));
+        assert!(violations.iter().any(|v| v.rule == "R401"));
+        let r401_violation = violations.iter().find(|v| v.rule == "R401").unwrap();
+        assert!(r401_violation.message.contains("SqlType::Custom"));
     }
 
-    /// D405: Markdown link with backticks should not trigger
+    /// R401: Markdown link with backticks should not trigger
     #[test]
-    fn test_d405_markdown_link_with_backticks() {
+    fn test_r401_markdown_link_with_backticks() {
         let docstring = Docstring {
             content: "For use with [`SqlType::Custom`](crate::SqlType).".to_string(),
             raw_content: "/// For use with [`SqlType::Custom`](crate::SqlType).".to_string(),
@@ -1014,12 +1218,12 @@ mod tests {
             target_type: DocstringTarget::Function,
         };
         let violations = Pep257Checker::check_docstring(&docstring);
-        assert!(!violations.iter().any(|v| v.rule == "D405"));
+        assert!(!violations.iter().any(|v| v.rule == "R401"));
     }
 
-    /// D405: Markdown link with plain text should not trigger
+    /// R401: Markdown link with plain text should not trigger
     #[test]
-    fn test_d405_markdown_link_plain_text() {
+    fn test_r401_markdown_link_plain_text() {
         let docstring = Docstring {
             content: "See the [documentation](https://example.com) for details.".to_string(),
             raw_content: "/// See the [documentation](https://example.com) for details."
@@ -1031,12 +1235,12 @@ mod tests {
             target_type: DocstringTarget::Function,
         };
         let violations = Pep257Checker::check_docstring(&docstring);
-        assert!(!violations.iter().any(|v| v.rule == "D405"));
+        assert!(!violations.iter().any(|v| v.rule == "R401"));
     }
 
-    /// D405: Markdown link with PascalCase should trigger
+    /// R401: Markdown link with PascalCase should trigger
     #[test]
-    fn test_d405_markdown_link_pascalcase() {
+    fn test_r401_markdown_link_pascalcase() {
         let docstring = Docstring {
             content: "Returns a [MyType](crate::MyType) instance.".to_string(),
             raw_content: "/// Returns a [MyType](crate::MyType) instance.".to_string(),
@@ -1047,12 +1251,12 @@ mod tests {
             target_type: DocstringTarget::Function,
         };
         let violations = Pep257Checker::check_docstring(&docstring);
-        assert!(violations.iter().any(|v| v.rule == "D405"));
+        assert!(violations.iter().any(|v| v.rule == "R401"));
     }
 
-    /// D405: Standalone bracket reference without URL should trigger
+    /// R401: Standalone bracket reference without URL should trigger
     #[test]
-    fn test_d405_standalone_bracket_reference() {
+    fn test_r401_standalone_bracket_reference() {
         let docstring = Docstring {
             content: "Wrapper around a [PrimaryKeyType] to indicate the primary key.".to_string(),
             raw_content: "/// Wrapper around a [PrimaryKeyType] to indicate the primary key."
@@ -1064,14 +1268,14 @@ mod tests {
             target_type: DocstringTarget::Function,
         };
         let violations = Pep257Checker::check_docstring(&docstring);
-        assert!(violations.iter().any(|v| v.rule == "D405"));
-        let d405_violation = violations.iter().find(|v| v.rule == "D405").unwrap();
-        assert!(d405_violation.message.contains("PrimaryKeyType"));
+        assert!(violations.iter().any(|v| v.rule == "R401"));
+        let r401_violation = violations.iter().find(|v| v.rule == "R401").unwrap();
+        assert!(r401_violation.message.contains("PrimaryKeyType"));
     }
 
-    /// D405: Standalone backticked link should NOT trigger
+    /// R401: Standalone backticked link should NOT trigger
     #[test]
-    fn test_d405_standalone_backticked_link() {
+    fn test_r401_standalone_backticked_link() {
         let docstring = Docstring {
             content: "Where [`Self`] is a [`Migrations`](crate::migrations::Migrations)."
                 .to_string(),
@@ -1084,12 +1288,12 @@ mod tests {
             target_type: DocstringTarget::Function,
         };
         let violations = Pep257Checker::check_docstring(&docstring);
-        assert!(!violations.iter().any(|v| v.rule == "D405"));
+        assert!(!violations.iter().any(|v| v.rule == "R401"));
     }
 
-    /// D405: Reference-style link label should NOT trigger
+    /// R401: Reference-style link label should NOT trigger
     #[test]
-    fn test_d405_reference_style_link_label() {
+    fn test_r401_reference_style_link_label() {
         let docstring = Docstring {
             content: "[`Migrations`][crate::migrations::Migrations].".to_string(),
             raw_content: "/// [`Migrations`][crate::migrations::Migrations].".to_string(),
@@ -1101,12 +1305,12 @@ mod tests {
         };
         let violations = Pep257Checker::check_docstring(&docstring);
         // Should not trigger on the label part [crate::migrations::Migrations]
-        assert!(!violations.iter().any(|v| v.rule == "D405"));
+        assert!(!violations.iter().any(|v| v.rule == "R401"));
     }
 
-    /// D405: Brackets inside inline code should NOT trigger
+    /// R401: Brackets inside inline code should NOT trigger
     #[test]
-    fn test_d405_inside_backticks() {
+    fn test_r401_inside_backticks() {
         let docstring = Docstring {
             content: "Test with attribute macro `#[butane::model]`.".to_string(),
             raw_content: "/// Test with attribute macro `#[butane::model]`.".to_string(),
@@ -1117,12 +1321,12 @@ mod tests {
             target_type: DocstringTarget::Function,
         };
         let violations = Pep257Checker::check_docstring(&docstring);
-        assert!(!violations.iter().any(|v| v.rule == "D405"));
+        assert!(!violations.iter().any(|v| v.rule == "R401"));
     }
 
-    /// D406: Standalone [Option] should trigger
+    /// R402: Standalone [Option] should trigger
     #[test]
-    fn test_d406_option_standalone() {
+    fn test_r402_option_standalone() {
         let docstring = Docstring {
             content: "Returns an [Option] containing the result.".to_string(),
             raw_content: "/// Returns an [Option] containing the result.".to_string(),
@@ -1133,14 +1337,14 @@ mod tests {
             target_type: DocstringTarget::Function,
         };
         let violations = Pep257Checker::check_docstring(&docstring);
-        assert!(violations.iter().any(|v| v.rule == "D406"));
-        let d406_violation = violations.iter().find(|v| v.rule == "D406").unwrap();
-        assert!(d406_violation.message.contains("Option"));
+        assert!(violations.iter().any(|v| v.rule == "R402"));
+        let r402_violation = violations.iter().find(|v| v.rule == "R402").unwrap();
+        assert!(r402_violation.message.contains("Option"));
     }
 
-    /// D406: [Result] with URL should trigger
+    /// R402: [Result] with URL should trigger
     #[test]
-    fn test_d406_result_with_url() {
+    fn test_r402_result_with_url() {
         let docstring = Docstring {
             content: "Returns a [Result](std::result::Result) value.".to_string(),
             raw_content: "/// Returns a [Result](std::result::Result) value.".to_string(),
@@ -1151,12 +1355,12 @@ mod tests {
             target_type: DocstringTarget::Function,
         };
         let violations = Pep257Checker::check_docstring(&docstring);
-        assert!(violations.iter().any(|v| v.rule == "D406"));
+        assert!(violations.iter().any(|v| v.rule == "R402"));
     }
 
-    /// D406: Backticked [`Option`] should NOT trigger
+    /// R402: Backticked [`Option`] should NOT trigger
     #[test]
-    fn test_d406_option_with_backticks() {
+    fn test_r402_option_with_backticks() {
         let docstring = Docstring {
             content: "Returns an [`Option`] containing the result.".to_string(),
             raw_content: "/// Returns an [`Option`] containing the result.".to_string(),
@@ -1167,12 +1371,12 @@ mod tests {
             target_type: DocstringTarget::Function,
         };
         let violations = Pep257Checker::check_docstring(&docstring);
-        assert!(!violations.iter().any(|v| v.rule == "D406"));
+        assert!(!violations.iter().any(|v| v.rule == "R402"));
     }
 
-    /// D406: Inline code `Option` should NOT trigger
+    /// R402: Inline code `Option` should NOT trigger
     #[test]
-    fn test_d406_inline_code() {
+    fn test_r402_inline_code() {
         let docstring = Docstring {
             content: "Returns an `Option` containing the result.".to_string(),
             raw_content: "/// Returns an `Option` containing the result.".to_string(),
@@ -1183,12 +1387,12 @@ mod tests {
             target_type: DocstringTarget::Function,
         };
         let violations = Pep257Checker::check_docstring(&docstring);
-        assert!(!violations.iter().any(|v| v.rule == "D406"));
+        assert!(!violations.iter().any(|v| v.rule == "R402"));
     }
 
-    /// D406: Multiple common types should trigger for each
+    /// R402: Multiple common types should trigger for each
     #[test]
-    fn test_d406_multiple_types() {
+    fn test_r402_multiple_types() {
         let docstring = Docstring {
             content: "Returns [Option] or [Result] or [Vec].".to_string(),
             raw_content: "/// Returns [Option] or [Result] or [Vec].".to_string(),
@@ -1199,13 +1403,13 @@ mod tests {
             target_type: DocstringTarget::Function,
         };
         let violations = Pep257Checker::check_docstring(&docstring);
-        let d406_violations: Vec<_> = violations.iter().filter(|v| v.rule == "D406").collect();
-        assert_eq!(d406_violations.len(), 3);
+        let r402_violations: Vec<_> = violations.iter().filter(|v| v.rule == "R402").collect();
+        assert_eq!(r402_violations.len(), 3);
     }
 
-    /// D406: Custom type [MyOption] should NOT trigger
+    /// R402: Custom type [MyOption] should NOT trigger
     #[test]
-    fn test_d406_custom_type() {
+    fn test_r402_custom_type() {
         let docstring = Docstring {
             content: "Returns a [MyOption] containing the result.".to_string(),
             raw_content: "/// Returns a [MyOption] containing the result.".to_string(),
@@ -1216,12 +1420,12 @@ mod tests {
             target_type: DocstringTarget::Function,
         };
         let violations = Pep257Checker::check_docstring(&docstring);
-        assert!(!violations.iter().any(|v| v.rule == "D406"));
+        assert!(!violations.iter().any(|v| v.rule == "R402"));
     }
 
-    /// D406: Brackets inside inline code should NOT trigger
+    /// R402: Brackets inside inline code should NOT trigger
     #[test]
-    fn test_d406_inside_backticks() {
+    fn test_r402_inside_backticks() {
         let docstring = Docstring {
             content: "Use `[Option]` or `[Result]` in inline code.".to_string(),
             raw_content: "/// Use `[Option]` or `[Result]` in inline code.".to_string(),
@@ -1232,9 +1436,10 @@ mod tests {
             target_type: DocstringTarget::Function,
         };
         let violations = Pep257Checker::check_docstring(&docstring);
-        assert!(!violations.iter().any(|v| v.rule == "D406"));
+        assert!(!violations.iter().any(|v| v.rule == "R402"));
     }
 
+    /// Test Display implementation for Violation with Error severity
     /// Test Display implementation for Violation with Error severity
     #[test]
     fn test_violation_display_error() {
@@ -1287,7 +1492,7 @@ mod tests {
     #[test]
     fn test_violation_display_special_chars() {
         let violation = Violation {
-            rule: "D405".to_string(),
+            rule: "R401".to_string(),
             message: "Markdown link text looks like code but lacks backticks: ".to_owned()
                 + "[SqlType::Custom] should be [`SqlType::Custom`]",
             line: 5,
@@ -1296,7 +1501,7 @@ mod tests {
         };
 
         let formatted = format!("{violation}");
-        assert!(formatted.starts_with("5:20 warning [D405]:"));
+        assert!(formatted.starts_with("5:20 warning [R401]:"));
         assert!(formatted.contains("[SqlType::Custom]"));
         assert!(formatted.contains("[`SqlType::Custom`]"));
     }
@@ -1306,7 +1511,7 @@ mod tests {
     fn test_violation_display_message_preservation() {
         let message = "Use inline code for common Rust type: [Option](...) should be `Option`";
         let violation = Violation {
-            rule: "D406".to_string(),
+            rule: "R402".to_string(),
             message: message.to_string(),
             line: 99,
             column: 8,
@@ -1314,14 +1519,14 @@ mod tests {
         };
 
         let formatted = format!("{violation}");
-        assert_eq!(formatted, format!("99:8 warning [D406]: {message}"));
+        assert_eq!(formatted, format!("99:8 warning [R402]: {message}"));
     }
 
     /// Test Display implementation with line 1, column 1
     #[test]
     fn test_violation_display_start_position() {
         let violation = Violation {
-            rule: "D100".to_string(),
+            rule: "D103".to_string(),
             message: "Missing docstring in public function".to_string(),
             line: 1,
             column: 1,
@@ -1329,7 +1534,7 @@ mod tests {
         };
 
         let formatted = format!("{violation}");
-        assert_eq!(formatted, "1:1 error [D100]: Missing docstring in public function");
+        assert_eq!(formatted, "1:1 error [D103]: Missing docstring in public function");
     }
 
     /// Test that to_string() works correctly (uses Display)

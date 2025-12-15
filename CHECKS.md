@@ -6,7 +6,15 @@ This document describes all the checks implemented in this tool for Rust documen
 
 | Rule | Severity | Description | Applies To |
 |------|----------|-------------|------------|
-| D100 | Error | Missing docstring in public items | All public items |
+| D100 | Error | Missing docstring in public module | Modules |
+| D101 | Error | Missing docstring in public class | Structs, Enums, Traits, Unions |
+| D102 | Error | Missing docstring in public method | Methods |
+| D103 | Error | Missing docstring in public function | Functions |
+| D104 | Error | Missing docstring in public package | Packages (lib.rs, mod.rs, module files) |
+| D106 | Error | Missing docstring in public nested class | Nested structs/enums |
+| R101 | Error | Missing docstring in public type alias | Type aliases |
+| R102 | Error | Missing docstring in public const/static | Constants, Static variables |
+| R103 | Error | Missing docstring in public macro | Macros |
 | D201 | Error | No blank lines before docstring | All items |
 | D202 | Error | No blank lines after docstring | All items |
 | D205 | Error | Blank line between summary and description | All items |
@@ -14,10 +22,9 @@ This document describes all the checks implemented in this tool for Rust documen
 | D402 | Error | First line should not be signature | Functions |
 | D403 | Error | First word should be capitalized | All items |
 | D301 | Warning | Consider raw strings for backslashes | Multi-line docstrings |
-| D302 | Warning | Unicode content detected | Multi-line docstrings |
 | D401 | Warning | First line should be imperative mood | All items |
-| D405 | Warning | Markdown links with code need backticks | All items |
-| D406 | Warning | Common types should use inline code | All items |
+| R401 | Warning | Markdown links with code need backticks | All items |
+| R402 | Warning | Common types should use inline code | All items |
 
 ## Check Categories
 
@@ -29,13 +36,187 @@ Checks are categorized by severity:
 
 ## Errors
 
-### D100: Missing Docstring in Public Items
+### D100: Missing Docstring in Public Module
+
+**Severity**: Error
+
+**Message**: `Missing docstring in public module`
+
+**Description**: Public modules should have documentation comments to outline their purpose and contents.
+
+**Example (Bad)**:
+```rust
+// src/calculator.rs
+pub fn add(a: i32, b: i32) -> i32 {
+    a + b
+}
+```
+
+**Example (Good)**:
+```rust
+// src/calculator.rs
+//! A simple calculator module.
+//!
+//! Provides basic arithmetic operations.
+
+pub fn add(a: i32, b: i32) -> i32 {
+    a + b
+}
+```
+
+---
+
+### D104: Missing Docstring in Public Package
+
+**Severity**: Error
+
+**Message**: `Missing docstring in public package`
+
+**Description**: Public packages (crate roots and module files) should have documentation comments to outline their purpose and contents. In Rust, this applies to `lib.rs`, `main.rs`, `mod.rs`, and module files like `x.rs` that have a corresponding `x/` directory.
+
+**Example (Bad)**:
+```rust
+// src/lib.rs
+pub mod calculator;
+pub mod utils;
+```
+
+**Example (Good)**:
+```rust
+// src/lib.rs
+//! A mathematics library.
+//!
+//! Provides various calculation and utility functions.
+
+pub mod calculator;
+pub mod utils;
+```
+
+**Another Example (Good)**:
+```rust
+// src/utils.rs (with src/utils/ directory)
+//! Utility functions module.
+//!
+//! Contains helper functions used throughout the crate.
+
+pub mod helpers;
+pub mod validators;
+```
+
+---
+
+### D101: Missing Docstring in Public Class
 
 **Severity**: Error
 
 **Message**: `Missing docstring in public {item_type}`
 
-**Description**: Public functions, structs, enums, traits, impl blocks, modules, and constants should have documentation comments.
+**Description**: Public class-like items (structs, enums, traits, and unions) should have documentation comments to outline their purpose and behavior.
+
+**Example (Bad) - Struct**:
+```rust
+pub struct Point {
+    pub x: f64,
+    pub y: f64,
+}
+```
+
+**Example (Good) - Struct**:
+```rust
+/// Represents a point in 2D space.
+pub struct Point {
+    pub x: f64,
+    pub y: f64,
+}
+```
+
+**Example (Bad) - Enum**:
+```rust
+pub enum Status {
+    Active,
+    Inactive,
+}
+```
+
+**Example (Good) - Enum**:
+```rust
+/// Represents the status of an entity.
+pub enum Status {
+    Active,
+    Inactive,
+}
+```
+
+**Example (Bad) - Trait**:
+```rust
+pub trait Drawable {
+    fn draw(&self);
+}
+```
+
+**Example (Good) - Trait**:
+```rust
+/// A trait for objects that can be drawn.
+pub trait Drawable {
+    fn draw(&self);
+}
+```
+
+**Example (Bad) - Union**:
+```rust
+pub union Data {
+    pub int_value: i32,
+    pub float_value: f32,
+}
+```
+
+**Example (Good) - Union**:
+```rust
+/// Represents data that can be interpreted as either integer or float.
+pub union Data {
+    pub int_value: i32,
+    pub float_value: f32,
+}
+```
+
+---
+
+### D102: Missing Docstring in Public Method
+
+**Severity**: Error
+
+**Message**: `Missing docstring in public method`
+
+**Description**: Public methods in impl blocks should have documentation comments to outline their purpose and behavior.
+
+**Example (Bad)**:
+```rust
+impl Point {
+    pub fn distance(&self) -> f64 {
+        (self.x * self.x + self.y * self.y).sqrt()
+    }
+}
+```
+
+**Example (Good)**:
+```rust
+impl Point {
+    /// Calculate the distance from the origin.
+    pub fn distance(&self) -> f64 {
+        (self.x * self.x + self.y * self.y).sqrt()
+    }
+}
+```
+
+---
+
+### D103: Missing Docstring in Public Function
+
+**Severity**: Error
+
+**Message**: `Missing docstring in public function`
+
+**Description**: Public functions should have documentation comments to outline their purpose and behavior.
 
 **Example (Bad)**:
 ```rust
@@ -52,9 +233,113 @@ pub fn calculate_sum(a: i32, b: i32) -> i32 {
 }
 ```
 
-**Notes**: 
-- Only triggered for public items (`pub`)
-- Private items are exempt from this check
+---
+
+### D106: Missing Docstring in Public Nested Class
+
+**Severity**: Error
+
+**Message**: `Missing docstring in public nested {item_type}`
+
+**Description**: Public nested structs and enums should have documentation comments. Nested items do not inherit the docstring of their enclosing item.
+
+**Example (Bad)**:
+```rust
+pub struct Outer {
+    pub struct Inner {
+        value: i32,
+    }
+}
+```
+
+**Example (Good)**:
+```rust
+/// Outer container.
+pub struct Outer {
+    /// Inner nested structure.
+    pub struct Inner {
+        value: i32,
+    }
+}
+```
+
+---
+
+### R101: Missing Docstring in Public Type Alias
+
+**Severity**: Error
+
+**Message**: `Missing docstring in public type alias`
+
+**Description**: Public type aliases should have documentation comments to explain their purpose and usage.
+
+**Example (Bad)**:
+```rust
+pub type Result<T> = std::result::Result<T, Error>;
+```
+
+**Example (Good)**:
+```rust
+/// A specialized Result type for this crate's operations.
+pub type Result<T> = std::result::Result<T, Error>;
+```
+
+---
+
+### R102: Missing Docstring in Public Const/Static
+
+**Severity**: Error
+
+**Message**: `Missing docstring in public {const|static}`
+
+**Description**: Public constants and static variables should have documentation comments to explain their purpose and value.
+
+**Example (Bad)**:
+```rust
+pub const MAX_SIZE: usize = 1024;
+
+pub static GLOBAL_CONFIG: Config = Config::default();
+```
+
+**Example (Good)**:
+```rust
+/// Maximum buffer size in bytes.
+pub const MAX_SIZE: usize = 1024;
+
+/// Global configuration instance.
+pub static GLOBAL_CONFIG: Config = Config::default();
+```
+
+---
+
+### R103: Missing Docstring in Public Macro
+
+**Severity**: Error
+
+**Message**: `Missing docstring in public macro`
+
+**Description**: Public macros should have documentation comments to explain their usage and behavior.
+
+**Example (Bad)**:
+```rust
+#[macro_export]
+macro_rules! log_error {
+    ($($arg:tt)*) => {
+        eprintln!("ERROR: {}", format_args!($($arg)*));
+    };
+}
+```
+
+**Example (Good)**:
+```rust
+/// Log an error message to stderr with ERROR prefix.
+#[macro_export]
+macro_rules! log_error {
+    ($($arg:tt)*) => {
+        eprintln!("ERROR: {}", format_args!($($arg)*));
+    };
+}
+```
 
 ---
 
@@ -302,30 +587,6 @@ fn parse_pattern(input: &str) -> Result<()> {
 
 ---
 
-### D302: Unicode Content Detection
-
-**Severity**: Warning
-
-**Message**: `Docstring contains Unicode characters`
-
-**Description**: Docstrings containing Unicode characters (non-ASCII) are flagged for awareness.
-
-**Applies to**: Multi-line docstrings only
-
-**Example**:
-```rust
-/// Calculate the area using π (pi).
-///
-/// The formula uses π ≈ 3.14159...
-fn calculate_area(radius: f64) -> f64 {
-    // ...
-}
-```
-
-**Note**: This is informational; Unicode in docstrings is valid in Rust, but may have portability or rendering considerations.
-
----
-
 ### D401: First Line Should Be in Imperative Mood
 
 **Severity**: Warning
@@ -366,7 +627,7 @@ fn get_result() -> i32 {
 
 ---
 
-### D405: Markdown Links With Code Should Have Backticks
+### R401: Markdown Links With Code Should Have Backticks
 
 **Severity**: Warning
 
@@ -402,7 +663,7 @@ struct Wrapper;
 
 ---
 
-### D406: Common Rust Types Should Use Inline Code
+### R402: Common Rust Types Should Use Inline Code
 
 **Severity**: Warning
 
@@ -459,7 +720,15 @@ fn try_parse(s: &str) -> Result<i32, ParseError> {
 
 | Rule | Severity | Description | Applies To |
 |------|----------|-------------|------------|
-| D100 | Error | Missing docstring in public items | All public items |
+| D100 | Error | Missing docstring in public module | Modules |
+| D101 | Error | Missing docstring in public class | Structs, Enums, Traits |
+| D102 | Error | Missing docstring in public method | Methods |
+| D103 | Error | Missing docstring in public function | Functions |
+| D104 | Error | Missing docstring in public package | Packages (lib.rs, mod.rs, module files) |
+| D106 | Error | Missing docstring in public nested class | Nested structs/enums |
+| R101 | Error | Missing docstring in public type alias | Type aliases |
+| R102 | Error | Missing docstring in public const/static | Constants, Static variables |
+| R103 | Error | Missing docstring in public macro | Macros |
 | D201 | Error | No blank lines before docstring | All items |
 | D202 | Error | No blank lines after docstring | All items |
 | D205 | Error | Blank line between summary and description | All items |
@@ -467,10 +736,9 @@ fn try_parse(s: &str) -> Result<i32, ParseError> {
 | D402 | Error | First line should not be signature | Functions |
 | D403 | Error | First word should be capitalized | All items |
 | D301 | Warning | Consider raw strings for backslashes | Multi-line docstrings |
-| D302 | Warning | Unicode content detected | Multi-line docstrings |
 | D401 | Warning | First line should be imperative mood | All items |
-| D405 | Warning | Markdown links with code need backticks | All items |
-| D406 | Warning | Common types should use inline code | All items |
+| R401 | Warning | Markdown links with code need backticks | All items |
+| R402 | Warning | Common types should use inline code | All items |
 
 ---
 
@@ -520,9 +788,28 @@ fn example() { }
 
 This tool adapts Python's PEP 257 conventions to Rust. Some rules have been modified:
 
+- **D100-D107**: Adapted to Rust item types. D101 covers all class-like types (structs, enums, traits, unions). D104 applies to crate roots (`lib.rs`, `main.rs`) and module files (`mod.rs`, `x.rs` with `x/` directory). D105 (magic methods) and D107 (`__init__`) are not applicable to Rust.
 - **D300**: Not implemented; Rust doesn't use triple quotes
-- **D201/D202**: Adapted for Rust comment syntax
+- **D201/D202**: Adapted for Rust comment syntax and apply to all item types
 - **D301**: Adapted to suggest raw strings for `\\` patterns
-- **D405/D406**: New rules specific to Rust documentation practices
+- **R101**: New rule for type aliases (Rust-specific item type)
+- **R102**: New rule for constants and static variables (Rust-specific item types)
+- **R103**: New rule for macros (Rust-specific item type)
+- **R401/R402**: New rules specific to Rust documentation practices (Markdown links and common types)
 
 The goal is to maintain the spirit of PEP 257 while respecting Rust's documentation conventions and best practices.
+
+---
+
+## Checks Not Yet Implemented
+
+The following checks from Python linters (Ruff, Pylint) are not yet implemented in this tool:
+
+### Character and Unicode Checks
+
+- **Ambiguous Unicode Characters**: Detection of Unicode characters that could be visually confusing (similar to Ruff's RUF001/RUF002)
+- **Bidirectional Unicode**: Control characters that can be used to obfuscate code (similar to Pylint's PLE2502)
+- **Invalid Control Characters**: Detection of control characters like backspace, NUL, ESC, SUB, zero-width space (similar to Pylint's PLE2510-2515)
+- **Tab Characters in Docstrings**: Detection of tabs in docstring content (similar to pydocstyle's D206)
+
+These checks may be added in future versions to improve code safety and readability.
