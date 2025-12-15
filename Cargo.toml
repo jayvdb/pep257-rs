@@ -22,6 +22,9 @@ thiserror = "2.0"
 tree-sitter = "0.26"
 tree-sitter-rust = "0.24"
 
+[features]
+clap-markdown = ["dep:clap-markdown"]
+
 [lints]
 workspace = true
 
