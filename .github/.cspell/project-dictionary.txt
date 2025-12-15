@@ -19,6 +19,7 @@ pascalcase
 peekable
 pipefail
 pipx
+pydocstyle
 repr
 rustc
 rustdoc

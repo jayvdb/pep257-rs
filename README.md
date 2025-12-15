@@ -52,13 +52,14 @@ pep257 check --format json
 For detailed usage and all available options, see [HELP.md](HELP.md).
 
 For a complete list of supported options, run:
+
 ```bash
 pep257 --help
 ```
 
 ## Example Output
 
-```
+```text
 src/main.rs:1:1 error [D403]: First word of the first line should be properly capitalized
 src/main.rs:1:1 error [D400]: First line should end with a period
 src/main.rs:15:1 error [D100]: Missing docstring in public function
@@ -75,11 +76,13 @@ src/main.rs:15:1 error [D100]: Missing docstring in public function
 pep257 check src/
 ```
 
-The tool exits with a non-zero status if violations are found (use `--no-fail` to override).
+The tool exits with a non-zero status if violations are found (use
+`--no-fail` to override).
 
 ## Contributing
 
 Contributions are welcome! Please ensure:
+
 - Tests pass: `cargo test`
 - Clippy passes: `cargo clippy`
 - Code is formatted and linted: `tools/tidy.sh`

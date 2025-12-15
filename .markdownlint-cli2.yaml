@@ -3,6 +3,7 @@
 # Ignore generated files
 ignores:
   - HELP.md
+  - CHECKS.md
 
 # Default state for all rules
 default: true
