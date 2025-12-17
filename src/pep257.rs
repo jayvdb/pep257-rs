@@ -5,7 +5,7 @@ use regex::Regex;
 
 /// Represents a PEP 257 violation.
 #[derive(Debug, Clone)]
-pub(crate) struct Violation {
+pub struct Violation {
     pub rule: String,
     pub message: String,
     pub line: usize,
@@ -15,7 +15,7 @@ pub(crate) struct Violation {
 
 /// Severity level for violations.
 #[derive(Debug, Clone)]
-pub(crate) enum Severity {
+pub enum Severity {
     Error,
     Warning,
 }
@@ -403,7 +403,8 @@ impl Pep257Checker {
     }
 
     /// Remove Markdown links from a string to avoid false positives in checks.
-    /// Converts "[text](url)" to "text"
+    ///
+    /// Converts `[text](url)` to "text".
     fn remove_markdown_links(text: &str) -> String {
         let mut result = String::new();
         let mut chars = text.chars().peekable();
@@ -450,8 +451,8 @@ impl Pep257Checker {
     }
 
     /// Check for markdown links that should have backticks inside square brackets.
-    /// For example, [SqlType::Custom] should be [`SqlType::Custom`].
-    /// This includes both markdown links [text](url) and standalone references [text].
+    ///
+    /// This includes both markdown links `[text](url)` and standalone references `[text]`.
     fn check_markdown_link_backticks(docstring: &Docstring) -> Vec<Violation> {
         let mut violations = Vec::new();
         let content = &docstring.content;

@@ -8,22 +8,19 @@ use crate::{
 };
 
 /// Main analyzer that combines parsing and checking.
-pub(crate) struct RustDocAnalyzer {
+pub struct RustDocAnalyzer {
     parser: RustParser,
 }
 
 /// Implementation of analyzer methods.
 impl RustDocAnalyzer {
     /// Create a new analyzer instance.
-    pub(crate) fn new() -> Result<Self, ParseError> {
+    pub fn new() -> Result<Self, ParseError> {
         Ok(Self { parser: RustParser::new()? })
     }
 
     /// Analyze a Rust file and return all PEP 257 violations.
-    pub(crate) fn analyze_file<P: AsRef<Path>>(
-        &mut self,
-        path: P,
-    ) -> Result<Vec<Violation>, ParseError> {
+    pub fn analyze_file<P: AsRef<Path>>(&mut self, path: P) -> Result<Vec<Violation>, ParseError> {
         info!("Processing file: {}", path.as_ref().display());
         let docstrings = self.parser.parse_file(&path)?;
         let mut violations = Vec::new();

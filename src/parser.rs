@@ -7,7 +7,7 @@ use crate::pep257::{Docstring, DocstringTarget};
 
 /// Errors that can occur during parsing.
 #[derive(thiserror::Error, Debug)]
-pub(crate) enum ParseError {
+pub enum ParseError {
     #[error("Failed to read file: {0}")]
     Io(#[from] std::io::Error),
     #[error("Failed to parse file: tree-sitter error")]
