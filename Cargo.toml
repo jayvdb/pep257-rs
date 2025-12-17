@@ -26,6 +26,9 @@ tree-sitter-rust = "0.24"
 [features]
 clap-markdown = ["dep:clap-markdown"]
 
+[dev-dependencies]
+tempfile = "3.0"
+
 [lints]
 workspace = true
 
