@@ -2,7 +2,9 @@ use std::{path::PathBuf, process};
 
 use clap::{CommandFactory as _, Parser as ClapParser, Subcommand, ValueEnum};
 use clap_verbosity_flag::Verbosity;
-use pep257::{analyzer::RustDocAnalyzer, file_collector::collect_rust_files_recursive, pep257::Severity};
+use pep257::{
+    analyzer::RustDocAnalyzer, file_collector::collect_rust_files_recursive, pep257::Severity,
+};
 
 /// Command-line interface configuration.
 #[derive(ClapParser, Debug)]

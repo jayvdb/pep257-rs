@@ -104,11 +104,7 @@ fn test_gitignore_respected() {
     let test_dir = TempDir::new().unwrap();
 
     // Initialize a git repository (required for ignore crate to respect .gitignore)
-    std::process::Command::new("git")
-        .args(["init"])
-        .current_dir(test_dir.path())
-        .output()
-        .ok();
+    std::process::Command::new("git").args(["init"]).current_dir(test_dir.path()).output().ok();
 
     // Create .gitignore
     fs::write(test_dir.path().join(".gitignore"), "ignored/\n").unwrap();
