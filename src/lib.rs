@@ -8,6 +8,3 @@ pub mod file_collector;
 pub mod parser;
 /// PEP 257 checker implementation.
 pub mod pep257;
-
-// Re-export commonly used public functions
-pub use file_collector::collect_rust_files_recursive;
