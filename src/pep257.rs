@@ -5,7 +5,7 @@ use regex::Regex;
 
 /// Represents a PEP 257 violation.
 #[derive(Debug, Clone)]
-pub(crate) struct Violation {
+pub struct Violation {
     pub rule: String,
     pub message: String,
     pub line: usize,
@@ -15,7 +15,7 @@ pub(crate) struct Violation {
 
 /// Severity level for violations.
 #[derive(Debug, Clone)]
-pub(crate) enum Severity {
+pub enum Severity {
     Error,
     Warning,
 }
