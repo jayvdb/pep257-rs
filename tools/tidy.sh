@@ -203,7 +203,7 @@ exclude_from_ls_files=()
 find_prune=(\! \( -name .git -prune \))
 while IFS= read -r; do
   find_prune+=(\! \( -name "${REPLY}" -prune \))
-done < <(sed -E 's/#.*//g; s/^[ \t]+//g; s/\/[ \t]+$//g; /^$/d' .gitignore)
+done < <(sed -E 's/#.*//g; s/^[[:space:]]+//g; s/\/[[:space:]]+$//g; /^$/d' .gitignore)
 while IFS=$'\n' read -r; do
   exclude_from_ls_files+=("${REPLY}")
 done < <({
@@ -496,7 +496,7 @@ else
 fi
 # https://prettier.io/docs/en/configuration
 check_alt '.editorconfig' 'other configs' "$(ls_files '*.prettierrc*' '*prettier.config.*')"
-check_alt '.yml extension' '.yaml extension' "$(ls_files '*.yaml' | { grep -Fv '.markdownlint-cli2.yaml' || true; })"
+check_alt '.yaml extension' '.yml extension' "$(ls_files '*.yml')"
 
 # TOML (if exists)
 if [[ -n "$(ls_files '*.toml' | { grep -Fv '.taplo.toml' || true; })" ]]; then
@@ -565,14 +565,15 @@ done
 workflows=()
 actions=()
 if [[ -d .github/workflows ]]; then
-  for p in .github/workflows/*.yml; do
+  for p in .github/workflows/*.yaml; do
+    [[ -e "${p}" ]] || continue
     workflows+=("${p}")
     bash_files+=("${p}") # TODO
   done
 fi
-if [[ -n "$(ls_files '*action.yml')" ]]; then
-  for p in $(ls_files '*action.yml'); do
-    if [[ "${p##*/}" == 'action.yml' ]]; then
+if [[ -n "$(ls_files '*action.yaml')" ]]; then
+  for p in $(ls_files '*action.yaml'); do
+    if [[ "${p##*/}" == 'action.yaml' ]]; then
       actions+=("${p}")
       if ! grep -Fq 'shell: sh' "${p}"; then
         bash_files+=("${p}")
@@ -789,7 +790,7 @@ elif check_install shellcheck; then
   if [[ ${#workflows[@]} -gt 0 ]] || [[ ${#actions[@]} -gt 0 ]]; then
     # Exclude SC2096 due to the way the temporary script is created.
     shellcheck_exclude=SC2086,SC2096,SC2129
-    info "running \`shellcheck --exclude ${shellcheck_exclude}\` for scripts in .github/workflows/*.yml and **/action.yml"
+    info "running \`shellcheck --exclude ${shellcheck_exclude}\` for scripts in .github/workflows/*.yaml and **/action.yaml"
     if check_install jq python3 pipx; then
       shellcheck_for_gha() {
         local text=$1
@@ -910,8 +911,8 @@ EOF
   fi
 fi
 zizmor_targets=(${workflows[@]+"${workflows[@]}"} ${actions[@]+"${actions[@]}"})
-if [[ -e .github/dependabot.yml ]]; then
-  zizmor_targets+=(.github/dependabot.yml)
+if [[ -e .github/dependabot.yaml ]]; then
+  zizmor_targets+=(.github/dependabot.yaml)
 fi
 if [[ ${#zizmor_targets[@]} -gt 0 ]]; then
   if [[ "${ostype}" =~ ^(netbsd|openbsd|dragonfly|illumos|solaris)$ ]] && [[ -n "${CI:-}" ]] && ! type -P zizmor >/dev/null; then
@@ -926,10 +927,17 @@ if [[ ${#zizmor_targets[@]} -gt 0 ]]; then
         error "GITHUB_TOKEN is required for zizmor online audits. Set GITHUB_TOKEN or run: gh auth login"
       fi
     fi
+    zizmor_extra=()
+    for p in .github/zizmor.yaml .github/zizmor.yml zizmor.yaml zizmor.yml; do
+      if [[ -f "${p}" ]]; then
+        zizmor_extra+=(--config "${p}")
+        break
+      fi
+    done
     IFS=' '
-    info "running \`zizmor -q ${zizmor_targets[*]}\`"
+    info "running \`zizmor -q ${zizmor_extra[*]+${zizmor_extra[*]} }${zizmor_targets[*]}\`"
     IFS=$'\n\t'
-    zizmor -q --gh-token "${GITHUB_TOKEN}" "${zizmor_targets[@]}"
+    zizmor -q --gh-token "${GITHUB_TOKEN}" ${zizmor_extra[@]+"${zizmor_extra[@]}"} "${zizmor_targets[@]}"
   fi
 fi
 printf '\n'
@@ -1052,8 +1060,8 @@ EOF
       fi
       case "${ostype}" in
       # NetBSD uniq doesn't support -i flag.
-      netbsd) dup=$(sed -E 's/#.*//g; s/^[ \t]+//g; s/\/[ \t]+$//g; /^$/d' "${project_dictionary}" "${dictionary}" | LC_ALL=C sort -f | tr '[:upper:]' '[:lower:]' | LC_ALL=C uniq -d) ;;
-      *) dup=$(sed -E 's/#.*//g; s/^[ \t]+//g; s/\/[ \t]+$//g; /^$/d' "${project_dictionary}" "${dictionary}" | LC_ALL=C sort -f | LC_ALL=C uniq -d -i) ;;
+      netbsd) dup=$(sed -E 's/#.*//g; s/^[[:space:]]+//g; s/\/[[:space:]]+$//g; /^$/d' "${project_dictionary}" "${dictionary}" | LC_ALL=C sort -f | tr '[:upper:]' '[:lower:]' | LC_ALL=C uniq -d) ;;
+      *) dup=$(sed -E 's/#.*//g; s/^[[:space:]]+//g; s/\/[[:space:]]+$//g; /^$/d' "${project_dictionary}" "${dictionary}" | LC_ALL=C sort -f | LC_ALL=C uniq -d -i) ;;
       esac
       if [[ -n "${dup}" ]]; then
         error "duplicated words in dictionaries; please remove the following words from ${project_dictionary}"
@@ -1066,9 +1074,9 @@ EOF
       grep_args=()
       while IFS= read -r word; do
         if ! grep -Eqi "^${word}$" <<<"${all_words}"; then
-          grep_args+=(-e "^[ \t]*${word}[ \t]*(#.*|$)")
+          grep_args+=(-e "^[[:space:]]*${word}[[:space:]]*(#.*|$)")
         fi
-      done < <(sed -E 's/#.*//g; s/^[ \t]+//g; s/\/[ \t]+$//g; /^$/d' "${project_dictionary}")
+      done < <(sed -E 's/#.*//g; s/^[[:space:]]+//g; s/\/[[:space:]]+$//g; /^$/d' "${project_dictionary}")
       if [[ ${#grep_args[@]} -gt 0 ]]; then
         info "removing unused words from ${project_dictionary}"
         info "please commit changes made by the removal above"
@@ -1085,7 +1093,7 @@ EOF
         if ! grep -Eqi "^${word}$" <<<"${all_words}"; then
           unused+="${word}"$'\n'
         fi
-      done < <(sed -E 's/#.*//g; s/^[ \t]+//g; s/\/[ \t]+$//g; /^$/d' "${project_dictionary}")
+      done < <(sed -E 's/#.*//g; s/^[[:space:]]+//g; s/\/[[:space:]]+$//g; /^$/d' "${project_dictionary}")
       if [[ -n "${unused}" ]]; then
         error "unused words in dictionaries; please remove the following words from ${project_dictionary} or run ${0##*/} locally"
         print_fenced "${unused}"

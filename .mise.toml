@@ -7,4 +7,10 @@ osv-scanner = "latest"
 jq = "latest"
 zizmor = "latest"
 shfmt = "latest"
+shellcheck = "latest"
+pipx = "latest"
 ruff = "latest"
+
+[tasks.tidy]
+description = "Run the same tidy checks the CI enforces."
+run = "tools/tidy.sh"

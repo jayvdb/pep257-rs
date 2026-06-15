@@ -3,7 +3,8 @@ use std::{path::PathBuf, process};
 use clap::{CommandFactory as _, Parser as ClapParser, Subcommand, ValueEnum};
 use clap_verbosity_flag::Verbosity;
 use pep257::{
-    analyzer::RustDocAnalyzer, file_collector::collect_rust_files_recursive, pep257::Severity,
+    analyzer::RustDocAnalyzer, config::Config, file_collector::collect_rust_files_recursive,
+    pep257::Severity,
 };
 
 /// Command-line interface configuration.
@@ -48,6 +49,14 @@ struct Cli {
     /// Exit with code 0 even if violations are found
     #[arg(long)]
     no_fail: bool,
+
+    /// Path to a TOML config file. Overrides auto-discovery of `Cargo.toml`.
+    ///
+    /// May point at a `Cargo.toml` (config is read from `[workspace.metadata.pep257]`
+    /// or `[package.metadata.pep257]`) or a free-standing TOML file whose root keys
+    /// are the pep257 config.
+    #[arg(long, value_name = "PATH", global = true)]
+    config: Option<PathBuf>,
 
     /// Generate markdown help
     #[cfg(feature = "clap-markdown")]
@@ -99,11 +108,12 @@ fn run(cli: &Cli) -> Result<(), Box<dyn std::error::Error>> {
     match &cli.command {
         Some(Commands::Check { path }) => {
             let target_path = path.clone().unwrap_or_else(|| PathBuf::from("."));
+            let config = Config::load(cli.config.as_deref(), &target_path)?;
 
             if target_path.is_file() {
-                total_violations += check_file(&mut analyzer, &target_path, cli)?;
+                total_violations += check_file(&mut analyzer, &target_path, cli, &config)?;
             } else if target_path.is_dir() {
-                total_violations += check_directory(&mut analyzer, &target_path, cli)?;
+                total_violations += check_directory(&mut analyzer, &target_path, cli, &config)?;
             } else {
                 eprintln!("Path does not exist: {}", target_path.display());
                 process::exit(1);
@@ -128,12 +138,14 @@ fn check_file(
     analyzer: &mut RustDocAnalyzer,
     file: &PathBuf,
     cli: &Cli,
+    config: &Config,
 ) -> Result<usize, Box<dyn std::error::Error>> {
     let violations = analyzer.analyze_file(file)?;
 
     let filtered_violations: Vec<_> = violations
         .into_iter()
         .filter(|v| cli.warnings || matches!(v.severity, Severity::Error))
+        .filter(|v| config.allows(&v.rule))
         .collect();
 
     match cli.format {
@@ -170,13 +182,14 @@ fn check_directory(
     analyzer: &mut RustDocAnalyzer,
     dir: &PathBuf,
     cli: &Cli,
+    config: &Config,
 ) -> Result<usize, Box<dyn std::error::Error>> {
     let mut total_violations = 0;
 
     let entries = collect_rust_files_recursive(dir)?;
 
     for file in entries {
-        total_violations += check_file(analyzer, &file, cli)?;
+        total_violations += check_file(analyzer, &file, cli, config)?;
     }
 
     Ok(total_violations)

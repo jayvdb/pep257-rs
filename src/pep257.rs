@@ -90,6 +90,18 @@ impl fmt::Display for DocstringTarget {
     }
 }
 
+/// Strip the leading doc-comment delimiter from a raw docstring line so the
+/// remaining text reflects only what the author typed inside the comment.
+fn strip_doc_prefix(line: &str) -> &str {
+    let trimmed = line.trim_start();
+    for prefix in ["///", "//!", "/**", "/*!"] {
+        if let Some(rest) = trimmed.strip_prefix(prefix) {
+            return rest;
+        }
+    }
+    line
+}
+
 /// PEP 257 checker implementation.
 pub(crate) struct Pep257Checker {
     #[allow(dead_code)]
@@ -176,6 +188,21 @@ impl Pep257Checker {
                     docstring.target_type
                 ),
                 line: docstring.line + lines.len() - 1,
+                column: docstring.column,
+                severity: Severity::Error,
+            });
+        }
+
+        // D206: Tab characters are not allowed in docstring content.
+        //
+        // Checked against `raw_content` because the parser strips leading whitespace
+        // (including tabs) when building `content`. We strip just the doc-comment
+        // prefix per line so the remaining text reflects what the author wrote.
+        if docstring.raw_content.lines().map(strip_doc_prefix).any(|body| body.contains('\t')) {
+            violations.push(Violation {
+                rule: "D206".to_string(),
+                message: "Docstring should be indented with spaces, not tabs".to_string(),
+                line: docstring.line,
                 column: docstring.column,
                 severity: Severity::Error,
             });
@@ -1881,5 +1908,60 @@ mod tests {
             violations.iter().any(|v| v.rule == "D205"),
             "Expected D205 when description immediately follows summary"
         );
+    }
+
+    /// A leading tab on a docstring line should trigger D206, even though
+    /// `process_doc_comments` would strip the tab from `content`.
+    #[test]
+    fn test_leading_tab_triggers_d206() {
+        let docstring = Docstring {
+            content: "Summary line.\n\nIndented with a tab.".to_owned(),
+            raw_content: "/// Summary line.\n///\n///\tIndented with a tab.".to_owned(),
+            line: 1,
+            column: 1,
+            is_multiline: true,
+            is_public: true,
+            target_type: DocstringTarget::Function,
+        };
+
+        let violations = Pep257Checker::check_docstring(&docstring);
+        assert!(
+            violations.iter().any(|v| v.rule == "D206"),
+            "Expected D206 when a leading tab appears on a doc line"
+        );
+    }
+
+    /// A mid-line tab in docstring content should also trigger D206.
+    #[test]
+    fn test_mid_line_tab_triggers_d206() {
+        let docstring = Docstring {
+            content: "Column1\tColumn2 summary.".to_owned(),
+            raw_content: "/// Column1\tColumn2 summary.".to_owned(),
+            line: 1,
+            column: 1,
+            is_multiline: false,
+            is_public: true,
+            target_type: DocstringTarget::Function,
+        };
+
+        let violations = Pep257Checker::check_docstring(&docstring);
+        assert!(violations.iter().any(|v| v.rule == "D206"));
+    }
+
+    /// A docstring without tabs should not trigger D206.
+    #[test]
+    fn test_no_tab_no_d206() {
+        let docstring = Docstring {
+            content: "Summary line.\n\n    Indented with spaces.".to_owned(),
+            raw_content: "/// Summary line.\n///\n///     Indented with spaces.".to_owned(),
+            line: 1,
+            column: 1,
+            is_multiline: true,
+            is_public: true,
+            target_type: DocstringTarget::Function,
+        };
+
+        let violations = Pep257Checker::check_docstring(&docstring);
+        assert!(!violations.iter().any(|v| v.rule == "D206"));
     }
 }

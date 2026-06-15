@@ -12,7 +12,6 @@ idents
 illumos
 Makefiles
 msrv
-MSYS
 nonminimal
 noprofile
 norc
@@ -28,6 +27,7 @@ rustdoc
 RUSTDOCFLAGS
 RUSTFLAGS
 RUSTUP
+shellcheck
 shfmt
 STOPSIGNAL
 subtables

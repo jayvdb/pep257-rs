@@ -1,12 +1,13 @@
 rules:
   excessive-permissions:
     ignore:
-      - ci.yml:5
+      - ci.yaml:5
   ref-confusion:
     ignore:
-      - ci.yml:49
+      - ci.yaml:49
 
   unpinned-uses:
     config:
       policies:
-        taiki-e/*: ref-pin
+        "taiki-e/*": ref-pin
+        "rust-lang/*": ref-pin

@@ -2,6 +2,8 @@
 
 /// Analyzer module for Rust documentation.
 pub mod analyzer;
+/// Configuration file loading and rule filtering.
+pub mod config;
 /// File collection module for finding Rust source files.
 pub mod file_collector;
 /// Parser module for extracting docstrings.

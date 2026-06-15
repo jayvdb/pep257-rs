@@ -18,6 +18,7 @@ This document describes all the checks implemented in this tool for Rust documen
 | D201 | Error | No blank lines before docstring | All items |
 | D202 | Error | No blank lines after docstring | All items |
 | D205 | Error | Blank line between summary and description | All items |
+| D206 | Error | Docstring should be indented with spaces, not tabs | All items |
 | D400 | Error | First line should end with period | All items |
 | D402 | Error | First line should not be signature | Functions |
 | D403 | Error | First word should be capitalized | All items |
@@ -458,6 +459,34 @@ fn add(a: i32, b: i32) -> i32 {
 
 ---
 
+### D206: Docstring Should Be Indented With Spaces, Not Tabs
+
+**Severity**: Error
+
+**Message**: `Docstring should be indented with spaces, not tabs`
+
+**Description**: Docstring content should use spaces for indentation and alignment, never tab characters. Adapted from pydocstyle's `D206`.
+
+**Example (Bad)**:
+```rust
+/// Summary line.
+///
+///	Detail paragraph indented with a tab.
+pub fn example() {}
+```
+
+**Example (Good)**:
+```rust
+/// Summary line.
+///
+///     Detail paragraph indented with spaces.
+pub fn example() {}
+```
+
+**Detection**: Any tab character (`\t`) inside docstring content triggers D206. The check looks at the original source so leading tabs immediately after the `///` (or `//!`) prefix are still detected.
+
+---
+
 ### D400: First Line Should End With a Period
 
 **Severity**: Error
@@ -732,6 +761,7 @@ fn try_parse(s: &str) -> Result<i32, ParseError> {
 | D201 | Error | No blank lines before docstring | All items |
 | D202 | Error | No blank lines after docstring | All items |
 | D205 | Error | Blank line between summary and description | All items |
+| D206 | Error | Docstring should be indented with spaces, not tabs | All items |
 | D400 | Error | First line should end with period | All items |
 | D402 | Error | First line should not be signature | Functions |
 | D403 | Error | First word should be capitalized | All items |
@@ -810,6 +840,5 @@ The following checks from Python linters (Ruff, Pylint) are not yet implemented 
 - **Ambiguous Unicode Characters**: Detection of Unicode characters that could be visually confusing (similar to Ruff's RUF001/RUF002)
 - **Bidirectional Unicode**: Control characters that can be used to obfuscate code (similar to Pylint's PLE2502)
 - **Invalid Control Characters**: Detection of control characters like backspace, NUL, ESC, SUB, zero-width space (similar to Pylint's PLE2510-2515)
-- **Tab Characters in Docstrings**: Detection of tabs in docstring content (similar to pydocstyle's D206)
 
 These checks may be added in future versions to improve code safety and readability.
