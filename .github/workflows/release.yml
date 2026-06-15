@@ -9,6 +9,10 @@ on:
       - v[0-9]+.*
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_GIT_FETCH_WITH_CLI: true
@@ -24,11 +28,12 @@ defaults:
 
 jobs:
   create-release:
+    name: Draft GitHub release
     if: github.repository_owner == 'jayvdb'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
-      contents: write
+      contents: write # required to create the GitHub release and upload assets
     steps:
       - uses: taiki-e/checkout-action@v1
       - uses: taiki-e/create-gh-release-action@v1
@@ -65,7 +70,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     permissions:
-      contents: write
+      contents: write # required to upload the built binary to the GitHub release
     steps:
       - uses: taiki-e/checkout-action@v1
       - uses: taiki-e/upload-rust-binary-action@v1
@@ -77,12 +82,13 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
   publish-crate:
+    name: Publish to crates.io
     if: github.repository_owner == 'jayvdb'
     needs: [create-release, upload-assets]
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
-      id-token: write
+      id-token: write # required to mint a crates.io token via trusted publishing
       contents: read
     steps:
       - uses: taiki-e/checkout-action@v1
