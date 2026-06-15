@@ -1,8 +1,6 @@
-use std::{
-    fs,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
+use fs_err as fs;
 use streaming_iterator::StreamingIterator as _;
 use tree_sitter::{Language, Parser, Query, QueryCursor, Tree};
 

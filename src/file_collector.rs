@@ -1,14 +1,14 @@
 //! File collection module for finding Rust source files.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Check if a directory should be skipped based on target directory rules.
 /// Returns true if the directory should be skipped.
-pub(crate) fn should_skip_target_dir(path: &std::path::Path) -> bool {
+pub(crate) fn should_skip_target_dir(path: &Path) -> bool {
     // Rule 2: If directory name is "target" and has no .rs files, skip it
     if path.file_name().and_then(|n| n.to_str()) == Some("target") {
         // Check if there are any .rs files directly in this target directory
-        if let Ok(entries) = std::fs::read_dir(path) {
+        if let Ok(entries) = fs_err::read_dir(path) {
             let has_rust_files = entries.filter_map(Result::ok).any(|e| {
                 let path = e.path();
                 path.is_file() && path.extension().is_some_and(|ext| ext == "rs")

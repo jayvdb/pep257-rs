@@ -15,11 +15,9 @@
 //! ignore = ["D401"]   # except D401
 //! ```
 
-use std::{
-    fs,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
+use fs_err as fs;
 use serde::Deserialize;
 use thiserror::Error;
 
@@ -33,22 +31,11 @@ pub enum ConfigError {
     #[error("config file not found: {0}")]
     NotFound(PathBuf),
     /// The config file content could not be parsed as TOML.
-    #[error("failed to parse config {path}: {message}")]
-    Parse {
-        /// Path of the offending file.
-        path: PathBuf,
-        /// Rendered TOML parser error message.
-        message: String,
-    },
-    /// An IO error occurred while reading the file.
-    #[error("failed to read config {path}: {source}")]
-    Io {
-        /// Path of the offending file.
-        path: PathBuf,
-        /// Underlying IO error.
-        #[source]
-        source: std::io::Error,
-    },
+    #[error("failed to parse config {0}")]
+    Parse(String),
+    /// An IO error (the offending path is included in the message via `fs_err`).
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
 }
 
 /// Parsed pep257 config.
@@ -138,11 +125,10 @@ impl Config {
                 .ok_or_else(|| ConfigError::NotFound(path.to_path_buf()));
         }
 
-        let text = read_to_string(path)?;
-        toml::from_str::<ConfigRaw>(&text).map(Config::from).map_err(|source| ConfigError::Parse {
-            path: path.to_path_buf(),
-            message: source.to_string(),
-        })
+        let text = fs::read_to_string(path)?;
+        toml::from_str::<ConfigRaw>(&text)
+            .map(Config::from)
+            .map_err(|source| parse_error(path, &source))
     }
 
     /// Parse a `Cargo.toml` and extract the pep257 metadata table, if any.
@@ -150,10 +136,9 @@ impl Config {
     /// `[workspace.metadata.pep257]` takes precedence over `[package.metadata.pep257]`
     /// when both are present in the same manifest.
     fn from_cargo_manifest(path: &Path) -> Result<Option<Self>, ConfigError> {
-        let text = read_to_string(path)?;
-        let manifest: CargoManifest = toml::from_str(&text).map_err(|source| {
-            ConfigError::Parse { path: path.to_path_buf(), message: source.to_string() }
-        })?;
+        let text = fs::read_to_string(path)?;
+        let manifest: CargoManifest =
+            toml::from_str(&text).map_err(|source| parse_error(path, &source))?;
         Ok(manifest
             .workspace
             .and_then(|w| w.metadata)
@@ -175,8 +160,8 @@ impl Config {
     }
 }
 
-fn read_to_string(path: &Path) -> Result<String, ConfigError> {
-    fs::read_to_string(path).map_err(|source| ConfigError::Io { path: path.to_path_buf(), source })
+fn parse_error(path: &Path, source: &toml::de::Error) -> ConfigError {
+    ConfigError::Parse(format!("{}: {source}", path.display()))
 }
 
 fn matches_code(rule: &str, pattern: &str) -> bool {
