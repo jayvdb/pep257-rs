@@ -1,7 +1,7 @@
 //! Integration tests for file collection functionality.
+#![cfg(test)]
 
-use std::fs;
-
+use fs_err as fs;
 use pep257::file_collector::collect_rust_files_recursive;
 use tempfile::TempDir;
 

@@ -65,6 +65,32 @@ src/main.rs:1:1 error [D400]: First line should end with a period
 src/main.rs:15:1 error [D100]: Missing docstring in public function
 ```
 
+## Configuration
+
+Configuration lives in your project's `Cargo.toml` under
+`[workspace.metadata.pep257]` (preferred for workspaces) or
+`[package.metadata.pep257]`. Both `select` and `ignore` accept exact
+rule codes (`"D401"`) or prefixes (`"D"`, `"R4"`).
+
+```toml
+[workspace.metadata.pep257]
+select = ["D"]      # include all D-rules
+ignore = ["D401"]   # except D401
+```
+
+If `select` is empty (the default), every rule is included unless explicitly
+ignored. `ignore` always wins over `select`.
+
+The tool auto-discovers `Cargo.toml` by walking up from the target path. To
+point at a different file (for example, a CI-only config), pass `--config`:
+
+```bash
+pep257 --config ci/pep257.toml check src/
+```
+
+`--config` may point at a `Cargo.toml` (config is read from the metadata
+tables) or a free-standing TOML file whose root keys are the config.
+
 ## Documentation
 
 - [HELP.md](HELP.md) - Complete command-line usage

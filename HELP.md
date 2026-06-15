@@ -47,6 +47,9 @@ Examples:
   Possible values: `text`, `json`
 
 * `--no-fail` — Exit with code 0 even if violations are found
+* `--config <PATH>` — Path to a TOML config file. Overrides auto-discovery of `Cargo.toml`.
+
+   May point at a `Cargo.toml` (config is read from `[workspace.metadata.pep257]` or `[package.metadata.pep257]`) or a free-standing TOML file whose root keys are the pep257 config.
 
 
 

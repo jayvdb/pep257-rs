@@ -5,11 +5,17 @@ ignores:
   - HELP.md
   - CHECKS.md
 
-# Default state for all rules
-default: true
+config:
+  # Default state for all rules
+  default: true
 
-# MD033/no-inline-html - Inline HTML
-MD033: false
+  # MD033/no-inline-html - Inline HTML
+  MD033: false
 
-# MD041/first-line-heading/first-line-h1 - First line in a file should be a top-level heading
-MD041: false
+  # MD041/first-line-heading/first-line-h1 - First line in a file should be a top-level heading
+  MD041: false
+
+  # MD024/no-duplicate-heading - Allow the same heading text under different
+  # parents (the Keep-a-Changelog pattern with "Added"/"Changed" per release).
+  MD024:
+    siblings_only: true

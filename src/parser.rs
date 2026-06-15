@@ -1,5 +1,6 @@
-use std::{fs, path::Path};
+use std::path::{Path, PathBuf};
 
+use fs_err as fs;
 use streaming_iterator::StreamingIterator as _;
 use tree_sitter::{Language, Parser, Query, QueryCursor, Tree};
 
@@ -20,6 +21,10 @@ pub enum ParseError {
 pub(crate) struct RustParser {
     parser: Parser,
     language: Language,
+    /// Path of the file currently being parsed, used to resolve `mod foo;`
+    /// declarations to their backing module files. `None` when parsing a bare
+    /// source string (e.g. in tests).
+    current_file: Option<PathBuf>,
 }
 
 /// Implementation of parser methods.
@@ -31,7 +36,7 @@ impl RustParser {
 
         parser.set_language(&language).map_err(|_| ParseError::TreeSitter)?;
 
-        Ok(Self { parser, language })
+        Ok(Self { parser, language, current_file: None })
     }
 
     /// Parses a Rust file and extracts docstrings.
@@ -39,8 +44,11 @@ impl RustParser {
         &mut self,
         path: P,
     ) -> Result<Vec<Docstring>, ParseError> {
-        let source_code = fs::read_to_string(path)?;
-        self.parse_source(&source_code)
+        let source_code = fs::read_to_string(&path)?;
+        self.current_file = Some(path.as_ref().to_path_buf());
+        let result = self.parse_source(&source_code);
+        self.current_file = None;
+        result
     }
 
     /// Parses Rust source code and extracts docstrings.
@@ -349,14 +357,93 @@ impl RustParser {
                 .map_or_else(|| query_match.captures[0].node, |capture| capture.node);
 
             // Look for documentation comments before this node
-            if let Some(docstring) =
+            let Some(docstring) =
                 Self::extract_preceding_docs(mod_node, source, DocstringTarget::Module)?
+            else {
+                continue;
+            };
+
+            // A `mod foo;` declaration (no inline body) is documented by the
+            // `//!` inner docs of its backing file (foo.rs or foo/mod.rs), not by
+            // an outer `///` at the declaration site. Adding such an outer comment
+            // would duplicate/conflict with the inner doc. When the declaration
+            // lacks inline docs, resolve the backing file and credit its inner
+            // docs so we don't raise a false D100. The file's own documentation
+            // quality is checked when that file is analyzed in its own right.
+            let is_declaration = mod_node.child_by_field_name("body").is_none();
+            let lacks_inline_docs = docstring.content.trim().is_empty();
+            if is_declaration
+                && lacks_inline_docs
+                && let Some(name_node) = mod_node.child_by_field_name("name")
             {
-                docstrings.push(docstring);
+                let mod_name =
+                    name_node.utf8_text(source.as_bytes()).map_err(|_| ParseError::TreeSitter)?;
+                if self.module_file_is_documented(mod_name) {
+                    continue;
+                }
             }
+
+            docstrings.push(docstring);
         }
 
         Ok(docstrings)
+    }
+
+    /// Determine whether a `mod <name>;` declaration's backing file exists and
+    /// carries inner (`//!` / `/*! */`) documentation at its top.
+    ///
+    /// Resolution follows Rust's module-path rules relative to the file being
+    /// parsed: a module declared in `lib.rs`/`main.rs`/`mod.rs` resolves against
+    /// the same directory, while one declared in `foo.rs` resolves against the
+    /// `foo/` subdirectory. Returns `false` when there is no backing file on
+    /// disk (e.g. inline-only parsing in tests) so the caller falls back to
+    /// reporting a missing docstring.
+    fn module_file_is_documented(&self, mod_name: &str) -> bool {
+        let Some(current) = self.current_file.as_ref() else {
+            return false;
+        };
+        let Some(parent) = current.parent() else {
+            return false;
+        };
+
+        // Files that "own" their directory resolve sibling modules directly;
+        // any other file `foo.rs` owns the `foo/` subdirectory.
+        let stem = current.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+        let base_dir = if matches!(stem, "lib" | "main" | "mod") || stem.is_empty() {
+            parent.to_path_buf()
+        } else {
+            parent.join(stem)
+        };
+
+        let candidates =
+            [base_dir.join(format!("{mod_name}.rs")), base_dir.join(mod_name).join("mod.rs")];
+
+        candidates
+            .iter()
+            .find_map(|path| fs::read_to_string(path).ok())
+            .is_some_and(|contents| Self::source_has_inner_docs(&contents))
+    }
+
+    /// Check whether source text begins with an inner doc comment (`//!` or
+    /// `/*!`), skipping blank lines, inner attributes (`#![...]`), and ordinary
+    /// comments that may precede it (e.g. license headers).
+    fn source_has_inner_docs(source: &str) -> bool {
+        for line in source.lines() {
+            let trimmed = line.trim_start();
+            if trimmed.is_empty() {
+                continue;
+            }
+            if trimmed.starts_with("//!") || trimmed.starts_with("/*!") {
+                return true;
+            }
+            // Inner attributes and plain line comments can precede module docs.
+            if trimmed.starts_with("#!") || trimmed.starts_with("//") {
+                continue;
+            }
+            // Anything else marks the start of real code: no module docs.
+            return false;
+        }
+        false
     }
 
     /// Extract documentation from const declarations.
