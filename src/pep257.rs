@@ -326,8 +326,17 @@ impl Pep257Checker {
             });
         }
 
-        // D401: First line should be in imperative mood
-        if !first_line.is_empty() && Self::is_not_imperative(first_line) {
+        // D401: First line should be in imperative mood.
+        //
+        // PEP 257 prescribes imperative mood ("Return the value.") only for the
+        // summary line of functions and methods. Type definitions (structs,
+        // enums, type aliases, traits) are conventionally documented with noun
+        // phrases ("An error from the storage layer."), which is both
+        // PEP-257-correct and idiomatic Rust, so D401 must not apply to them.
+        if docstring.target_type == DocstringTarget::Function
+            && !first_line.is_empty()
+            && Self::is_not_imperative(first_line)
+        {
             violations.push(Violation {
                 rule: "D401".to_string(),
                 message: "First line should be in imperative mood".to_string(),

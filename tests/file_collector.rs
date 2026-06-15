@@ -1,4 +1,5 @@
 //! Integration tests for file collection functionality.
+#![cfg(test)]
 
 use std::fs;
 
