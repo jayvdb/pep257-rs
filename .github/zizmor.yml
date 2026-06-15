@@ -1,10 +1,10 @@
 rules:
   excessive-permissions:
     ignore:
-      - ci.yaml:5
+      - ci.yml:5
   ref-confusion:
     ignore:
-      - ci.yaml:49
+      - ci.yml:49
 
   unpinned-uses:
     config:

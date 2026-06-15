@@ -496,7 +496,7 @@ else
 fi
 # https://prettier.io/docs/en/configuration
 check_alt '.editorconfig' 'other configs' "$(ls_files '*.prettierrc*' '*prettier.config.*')"
-check_alt '.yaml extension' '.yml extension' "$(ls_files '*.yml')"
+check_alt '.yml extension' '.yaml extension' "$(ls_files '*.yaml' | { grep -Fv '.markdownlint-cli2.yaml' || true; })"
 
 # TOML (if exists)
 if [[ -n "$(ls_files '*.toml' | { grep -Fv '.taplo.toml' || true; })" ]]; then
@@ -565,15 +565,14 @@ done
 workflows=()
 actions=()
 if [[ -d .github/workflows ]]; then
-  for p in .github/workflows/*.yaml; do
-    [[ -e "${p}" ]] || continue
+  for p in .github/workflows/*.yml; do
     workflows+=("${p}")
     bash_files+=("${p}") # TODO
   done
 fi
-if [[ -n "$(ls_files '*action.yaml')" ]]; then
-  for p in $(ls_files '*action.yaml'); do
-    if [[ "${p##*/}" == 'action.yaml' ]]; then
+if [[ -n "$(ls_files '*action.yml')" ]]; then
+  for p in $(ls_files '*action.yml'); do
+    if [[ "${p##*/}" == 'action.yml' ]]; then
       actions+=("${p}")
       if ! grep -Fq 'shell: sh' "${p}"; then
         bash_files+=("${p}")
@@ -790,7 +789,7 @@ elif check_install shellcheck; then
   if [[ ${#workflows[@]} -gt 0 ]] || [[ ${#actions[@]} -gt 0 ]]; then
     # Exclude SC2096 due to the way the temporary script is created.
     shellcheck_exclude=SC2086,SC2096,SC2129
-    info "running \`shellcheck --exclude ${shellcheck_exclude}\` for scripts in .github/workflows/*.yaml and **/action.yaml"
+    info "running \`shellcheck --exclude ${shellcheck_exclude}\` for scripts in .github/workflows/*.yml and **/action.yml"
     if check_install jq python3 pipx; then
       shellcheck_for_gha() {
         local text=$1
@@ -911,8 +910,8 @@ EOF
   fi
 fi
 zizmor_targets=(${workflows[@]+"${workflows[@]}"} ${actions[@]+"${actions[@]}"})
-if [[ -e .github/dependabot.yaml ]]; then
-  zizmor_targets+=(.github/dependabot.yaml)
+if [[ -e .github/dependabot.yml ]]; then
+  zizmor_targets+=(.github/dependabot.yml)
 fi
 if [[ ${#zizmor_targets[@]} -gt 0 ]]; then
   if [[ "${ostype}" =~ ^(netbsd|openbsd|dragonfly|illumos|solaris)$ ]] && [[ -n "${CI:-}" ]] && ! type -P zizmor >/dev/null; then
@@ -928,7 +927,7 @@ if [[ ${#zizmor_targets[@]} -gt 0 ]]; then
       fi
     fi
     zizmor_extra=()
-    for p in .github/zizmor.yaml .github/zizmor.yml zizmor.yaml zizmor.yml; do
+    for p in .github/zizmor.yml .github/zizmor.yaml zizmor.yml zizmor.yaml; do
       if [[ -f "${p}" ]]; then
         zizmor_extra+=(--config "${p}")
         break
