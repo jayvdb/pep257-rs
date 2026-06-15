@@ -35,12 +35,15 @@ concurrency:
 
 jobs:
   test:
-    uses: taiki-e/github-actions/.github/workflows/test.yml@main
+    uses: taiki-e/github-actions/.github/workflows/rust-test.yml@main
     with:
       direct-minimal-versions: false
       minimal-versions: false
       no-std: false
   tidy:
+    permissions:
+      contents: read
+      security-events: write # required by tidy.yml's nested codeql job
     uses: taiki-e/github-actions/.github/workflows/tidy.yml@main
   check-help:
     runs-on: ubuntu-latest
