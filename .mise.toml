@@ -9,6 +9,7 @@ zizmor = "latest"
 shfmt = "latest"
 shellcheck = "latest"
 pipx = "latest"
+node = "latest"
 ruff = "latest"
 
 [tasks.tidy]

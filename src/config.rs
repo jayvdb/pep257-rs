@@ -33,13 +33,12 @@ pub enum ConfigError {
     #[error("config file not found: {0}")]
     NotFound(PathBuf),
     /// The config file content could not be parsed as TOML.
-    #[error("failed to parse config {path}: {source}")]
+    #[error("failed to parse config {path}: {message}")]
     Parse {
         /// Path of the offending file.
         path: PathBuf,
-        /// Underlying TOML error.
-        #[source]
-        source: toml::de::Error,
+        /// Rendered TOML parser error message.
+        message: String,
     },
     /// An IO error occurred while reading the file.
     #[error("failed to read config {path}: {source}")]
@@ -53,15 +52,30 @@ pub enum ConfigError {
 }
 
 /// Parsed pep257 config.
-#[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq)]
-#[serde(deny_unknown_fields)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Config {
     /// Rule codes (or code prefixes) to include. Empty means "include all".
-    #[serde(default)]
     pub select: Vec<String>,
     /// Rule codes (or code prefixes) to exclude. Always wins over `select`.
-    #[serde(default)]
     pub ignore: Vec<String>,
+}
+
+/// Private deserializable mirror of [`Config`].
+///
+/// Kept separate so that `serde::Deserialize` is not part of the public API.
+#[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+struct ConfigRaw {
+    #[serde(default)]
+    select: Vec<String>,
+    #[serde(default)]
+    ignore: Vec<String>,
+}
+
+impl From<ConfigRaw> for Config {
+    fn from(raw: ConfigRaw) -> Self {
+        Self { select: raw.select, ignore: raw.ignore }
+    }
 }
 
 /// Wrapper for extracting `[workspace.metadata.pep257]` / `[package.metadata.pep257]`
@@ -83,7 +97,7 @@ struct TableWithMetadata {
 #[derive(Debug, Default, Deserialize)]
 struct MetadataTable {
     #[serde(default)]
-    pep257: Option<Config>,
+    pep257: Option<ConfigRaw>,
 }
 
 impl Config {
@@ -125,8 +139,10 @@ impl Config {
         }
 
         let text = read_to_string(path)?;
-        toml::from_str(&text)
-            .map_err(|source| ConfigError::Parse { path: path.to_path_buf(), source })
+        toml::from_str::<ConfigRaw>(&text).map(Config::from).map_err(|source| ConfigError::Parse {
+            path: path.to_path_buf(),
+            message: source.to_string(),
+        })
     }
 
     /// Parse a `Cargo.toml` and extract the pep257 metadata table, if any.
@@ -135,13 +151,15 @@ impl Config {
     /// when both are present in the same manifest.
     fn from_cargo_manifest(path: &Path) -> Result<Option<Self>, ConfigError> {
         let text = read_to_string(path)?;
-        let manifest: CargoManifest = toml::from_str(&text)
-            .map_err(|source| ConfigError::Parse { path: path.to_path_buf(), source })?;
+        let manifest: CargoManifest = toml::from_str(&text).map_err(|source| {
+            ConfigError::Parse { path: path.to_path_buf(), message: source.to_string() }
+        })?;
         Ok(manifest
             .workspace
             .and_then(|w| w.metadata)
             .and_then(|m| m.pep257)
-            .or_else(|| manifest.package.and_then(|p| p.metadata).and_then(|m| m.pep257)))
+            .or_else(|| manifest.package.and_then(|p| p.metadata).and_then(|m| m.pep257))
+            .map(Config::from))
     }
 
     /// Return `true` when a violation with the given rule code should be reported.
@@ -209,7 +227,7 @@ mod tests {
 
     #[test]
     fn rejects_unknown_keys_in_pep257_section() {
-        let result: Result<Config, _> = toml::from_str("banana = true");
+        let result: Result<ConfigRaw, _> = toml::from_str("banana = true");
         assert!(result.is_err());
     }
 

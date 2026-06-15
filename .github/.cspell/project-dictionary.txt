@@ -11,8 +11,10 @@ eprintln
 HEALTHCHECK
 idents
 illumos
+jayvdb
 Makefiles
 msrv
+msvc
 nonminimal
 noprofile
 norc
